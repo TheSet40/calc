@@ -162,20 +162,23 @@ class _MyHomePageState extends State<MainPage> {
 
     // Evaluate expression
   double evaluateExpression(List<dynamic> tokens) {
-    // Handle parentheses and unary operations
-    int index;
-    while ((index = tokens.indexWhere((t) => t == '(' || _isUnaryOperation(t))) != -1) {
-      if (tokens[index] == '(') {
-        int closeIndex = _findClosingParenthesisIndex(tokens, index);
-        double value = evaluateExpression(tokens.sublist(index + 1, closeIndex));
-        tokens.replaceRange(index, closeIndex + 1, [value]);
-      } else {
-        // Handling unary operations like sin, cos, tan, √, etc.
-        double operand = tokens[index + 1];
-        double result = applyUnaryOperation(tokens[index], operand);
-        tokens.replaceRange(index, index + 2, [result]);
+      // Handle parentheses
+      int openIndex;
+      while ((openIndex = tokens.lastIndexOf('(')) != -1) {
+        int closeIndex = tokens.indexOf(')', openIndex);
+        double value = evaluateExpression(tokens.sublist(openIndex + 1, closeIndex));
+        tokens.replaceRange(openIndex, closeIndex + 1, [value]);
       }
-    }
+
+      // Handle unary operations
+      for (var op in ["log", 'ln', 'sin', 'cos', 'tan', '√']) {
+        while (tokens.contains(op)) {
+          int index = tokens.indexOf(op);
+          double operand = tokens[index + 1];
+          double result = applyUnaryOperation(op, operand);
+          tokens.replaceRange(index, index + 2, [result]);
+        }
+      }
 
       // Handle exponentiation
       while (tokens.contains('^')) {
@@ -207,27 +210,6 @@ class _MyHomePageState extends State<MainPage> {
     }
 
     return evaluateExpression(tokens);
-  }
-
-  // Helper function to find closing parenthesis
-  int _findClosingParenthesisIndex(List<dynamic> tokens, int openIndex) {
-    int level = 1;
-    for (int i = openIndex + 1; i < tokens.length; i++) {
-      if (tokens[i] == '(') {
-        level++;
-      } else if (tokens[i] == ')') {
-        level--;
-        if (level == 0) {
-          return i;
-        }
-      }
-    }
-    throw const FormatException("Mismatched parentheses");
-  }
-
-  // Helper function to identify unary operations
-  bool _isUnaryOperation(dynamic token) {
-    return ['sin', 'cos', 'tan', '√', 'log', 'ln'].contains(token);
   }
 
   void handleButtonPress(String buttonText, bool operator, Color color){
@@ -316,7 +298,7 @@ class _MyHomePageState extends State<MainPage> {
                       padding: const EdgeInsets.only(right: 12),
                       alignment: Alignment.bottomRight,
                       child: Text(
-                        config.map((e) => displayString(e)).join(" "),
+                        config.map((e) => displayString(e)).join(),
                         style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.8)),
                       ),
                     ),

@@ -36,6 +36,7 @@ class _MyHomePageState extends State<MainPage> {
   bool showExtraButtons = false;
 
   bool degrees = true;
+  bool inverse = false;
   bool eyeComfort = false;
 
   void toggleExtraButtons() {
@@ -79,11 +80,12 @@ class _MyHomePageState extends State<MainPage> {
 
       return result;
     } catch (e) {
-      if (!e.toString().contains(RegExp(r"(inclusive range|value range is empty)"))) {
+      if (config.length > 1 && e.toString().contains(":")) {
         errorMessage = e.toString().split(":")[1];
       }
       debugPrint(e.toString());
     }
+
     return null;
   }
 
@@ -91,15 +93,15 @@ double calculateResult(List<Model> models) {
   List<dynamic> tokens = [];
 
   // Convert models to tokens
-  for (var i = 0; i < models.length; i++) {
-    var m = models[i];
+  for (int i = 0; i < models.length; i++) {
+    Model m = models[i];
     if (m.value != null) {
       tokens.add(m.value);
       if (i + 1 < models.length) {
-        var next = models[i + 1];
-        // Insert '*' if next token is π, e, '(', '%' or '|'
-        if (next.operation == "π" || next.operation == "e" || next.operation == "(" || next.operation == "%") {
-          tokens.add('*');
+        Model next = models[i + 1];
+        // Insert multiplication if next token is π, e, '(' or '%'
+        if (["π", "e", "(", "√", "ln", "log", "log2", "sin", "cos", "tan", "sin⁻¹", "cos⁻¹", "tan⁻¹"].contains(next.operation)) {
+          tokens.add('×');
         }
       }
     } else if (m.operation != null) {
@@ -107,17 +109,13 @@ double calculateResult(List<Model> models) {
         tokens.add(pi);
       } else if (m.operation == "e") {
         tokens.add(e);
-      } else if (m.operation == "%") {
-        tokens.add(0.01);
-      } else if (m.operation == "|") {
-        tokens.add('|');
       } else {
         tokens.add(m.operation);
-        // Insert '*' if operation is ')' and next token is a number, π, e, '(', '%' or '|'
+        // Insert multiplication if next token is π, e, '(' or '%'
         if (m.operation == ")" && i + 1 < models.length) {
-          var next = models[i + 1];
-          if (next.value != null || next.operation == "π" || next.operation == "e" || next.operation == "(" || next.operation == "%") {
-            tokens.add('*');
+          Model next = models[i + 1];
+          if (next.value != null || ["π", "e", "(", "√", "ln", "log", "log2", "sin", "cos", "tan", "sin⁻¹", "cos⁻¹", "tan⁻¹"].contains(next.operation)) {
+            tokens.add('×');
           }
         }
       }
@@ -133,7 +131,7 @@ double calculateResult(List<Model> models) {
         return left + right;
       case '-':
         return left - right;
-      case '*':
+      case '×':
         return left * right;
       case '/':
         if (right == 0) throw Exception('Division by zero');
@@ -142,9 +140,23 @@ double calculateResult(List<Model> models) {
         return pow(left, right) as double;
       case 'mod':
         return left % right;
+      case '«':
+        return (left.toInt() << right.toInt()).toDouble();
+      case '»':
+        return (left.toInt() >> right.toInt()).toDouble();
       default:
         throw Exception("Unsupported operation: $op");
     }
+  }
+
+  double factorial(double iterations) {
+    double result = 1.0;
+
+    for (int i = 2; i <= iterations; i++) {
+      result *= i;
+    }
+    
+    return result;
   }
 
   // Function to apply a unary operation
@@ -154,14 +166,26 @@ double calculateResult(List<Model> models) {
       case 'sin':
         result = sin(degrees ? (operand * pi / 180) : operand);
         break;
+      case 'sin⁻¹':
+        result = asin(degrees ? (operand * pi / 180) : operand);
+        break;
       case 'cos':
         result = cos(degrees ? (operand * pi / 180) : operand);
+        break;
+      case 'cos⁻¹':
+        result = acos(degrees ? (operand * pi / 180) : operand);
         break;
       case 'tan':
         result = tan(degrees ? (operand * pi / 180) : operand);
         break;
+      case 'tan⁻¹':
+        result = atan(degrees ? (operand * pi / 180) : operand);
+        break;
       case 'log':
         result = log(operand) / ln10;
+        break;
+      case 'log2':
+        result = log(operand) / ln2;
         break;
       case 'ln':
         result = log(operand);
@@ -169,9 +193,14 @@ double calculateResult(List<Model> models) {
       case '√':
         result = sqrt(operand);
         break;
+      case '!':
+        return factorial(operand);
+      case '%':
+        return operand * 0.01;
       default:
         throw Exception("Unsupported unary operation: $op");
     }
+
     return roundFloatError(result);
   }
 
@@ -179,24 +208,45 @@ double calculateResult(List<Model> models) {
   double evaluateExpression(List<dynamic> tokens) {
     debugPrint("tokens $tokens");
 
-    // Handle absolute value
-    int openIndex;
-    while ((openIndex = tokens.indexOf('|')) != -1) {
-      int closeIndex = tokens.indexOf('|', openIndex + 1);
-      if (closeIndex == -1) throw const FormatException("Mismatched '|' for absolute value");
-      double value = evaluateExpression(tokens.sublist(openIndex + 1, closeIndex));
-      tokens.replaceRange(openIndex, closeIndex + 1, [value.abs()]);
-    }
-
     // Handle parentheses
+    int openIndex;
     while ((openIndex = tokens.lastIndexOf('(')) != -1) {
       int closeIndex = tokens.indexOf(')', openIndex);
       double value = evaluateExpression(tokens.sublist(openIndex + 1, closeIndex));
       tokens.replaceRange(openIndex, closeIndex + 1, [value]);
     }
 
-    // Handle unary operations
-    for (var op in ["log", 'ln', 'sin', 'cos', 'tan', '√']) {
+    // Handle absolute value
+    while ((openIndex = tokens.indexOf('|')) != -1) {
+      int closeIndex = tokens.indexOf('|', openIndex + 1);
+      if (closeIndex == -1) throw Exception("missing end '|'");
+      double value = evaluateExpression(tokens.sublist(openIndex + 1, closeIndex));
+      tokens.replaceRange(openIndex, closeIndex + 1, [value.abs()]);
+    }
+
+    // Handle ending unary operations
+    for (String op in ['!', '%']) {
+      while (tokens.contains(op)) {
+        int index = tokens.indexOf(op);
+        double operand = tokens[index - 1];
+        double result = applyUnaryOperation(op, operand);
+        tokens.replaceRange(index -1, index + 1, [result]);
+      }
+    }
+
+    // Handle exponentiation
+    for (String op in ["»", "«", "^"]) {
+      while (tokens.contains(op)) {
+        int index = tokens.indexOf(op);
+        double left = tokens[index - 1];
+        double right = tokens[index + 1];
+        double result = applyOperation(op, left, right);
+        tokens.replaceRange(index - 1, index + 2, [result]);
+      }
+    }
+
+    // Handle starting unary operations
+    for (String op in ['sin', 'sin⁻¹', 'cos', 'cos⁻¹', 'tan', 'tan⁻¹', 'log', 'log2', 'ln', '√']) {
       while (tokens.contains(op)) {
         int index = tokens.indexOf(op);
         double operand = tokens[index + 1];
@@ -205,49 +255,29 @@ double calculateResult(List<Model> models) {
       }
     }
 
-    // Handle exponentiation
-    while (tokens.contains('^')) {
-      int index = tokens.indexOf('^');
-      double left = tokens[index - 1];
-      double right = tokens[index + 1];
-      double result = applyOperation('^', left, right);
-      tokens.replaceRange(index - 1, index + 2, [result]);
-    }
-
     // Handle multiplication and division
     int multIndex;
-    while ((multIndex = tokens.indexWhere((t) => t == '*' || t == '/')) != -1) {
+    while ((multIndex = tokens.indexWhere((t) => t == '×' || t == '/')) != -1) {
       double left = tokens[multIndex - 1];
       double right = tokens[multIndex + 1];
       double result = applyOperation(tokens[multIndex], left, right);
       tokens.replaceRange(multIndex - 1, multIndex + 2, [result]);
     }
 
+    for (int j = 0; j < tokens.length; j++) {
+      if (j != tokens.length - 1 && (j - 1 < 0 || tokens[j -1] == "-") && tokens[j] == "-" &&  tokens[j + 1].runtimeType == double) {
+        tokens.replaceRange(j, j + 2, [double.parse(tokens[j].toString() + tokens[j + 1].toString())]);
+      }
+    }
+
+    debugPrint("input tokens for a & s $tokens");
+
     // Handle addition and subtraction
     while (tokens.length > 1) {
-      String stringLeft = tokens[0].toString();
-
-      if (tokens.length == 2 && stringLeft == "-") {
-        return tokens[1] * -1.0;
-      }
-
-      String stringRight = tokens[2].toString();
-
-      int offset = 1;
-
-      if (stringLeft == "-") {
-        stringLeft = "-${tokens[0 + offset]}";
-        stringRight = tokens[2 + offset].toString();
-        offset++;
-      }
-      
-      if (stringRight == "-") {
-        stringRight = "-${tokens[2 + offset]}";
-      }
-
-      double result = applyOperation(tokens[offset], double.parse(stringLeft), double.parse(stringRight));
-
-      tokens.replaceRange(0, 2 + offset, [result]);
+      double left = tokens[0];
+      double right = tokens[2];
+      double result = applyOperation(tokens[1], left, right);
+      tokens.replaceRange(0, 3, [result]);
     }
 
     return roundFloatError(tokens[0]);
@@ -256,15 +286,17 @@ double calculateResult(List<Model> models) {
   return roundFloatError(evaluateExpression(tokens));
 }
 
+
   void handleButtonPress(String buttonText, bool operator, Color color){
     if (operator) {
       switch (buttonText) {
         case "C": config.clear(); break;
         case "DEL": if (config.isNotEmpty) config.removeLast(); break;
         case ".": config.last.isDecimal = true; break;
-        case "=": getResult(); setState(() {}); return;
+        case "=": setState(getResult); return;
         default:
-          if(config.last.value != null) {
+          if(config.isEmpty || config.last.value != null || ((buttonText == "-" || buttonText == ")" || buttonText == "("))) {
+            debugPrint("adding opperand: \"$buttonText\"");
             final addition = Model(operation: buttonText);
             config.add(addition);
           } else {
@@ -337,28 +369,28 @@ double calculateResult(List<Model> models) {
                   ),
                 ),
               ),
-              Positioned(
-                top: 15,
-                right: 10,
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      eyeComfort = !eyeComfort;
-                    });
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF5a6372),
-                      borderRadius: BorderRadius.all(Radius.circular(25))
-                    ),
-                    child: Icon(
-                      Icons.remove_red_eye_outlined,
-                      color: Colors.white.withOpacity(0.85),
-                    ),
-                  ),
-                ),
-              ),
+              // Positioned(
+              //   top: 15,
+              //   right: 10,
+              //   child: GestureDetector(
+              //     onTap: () {
+              //       setState(() {
+              //         eyeComfort = !eyeComfort;
+              //       });
+              //     },
+              //     child: Container(
+              //       padding: const EdgeInsets.all(6),
+              //       decoration: const BoxDecoration(
+              //         color: Color(0xFF5a6372),
+              //         borderRadius: BorderRadius.all(Radius.circular(25))
+              //       ),
+              //       child: Icon(
+              //         Icons.remove_red_eye_outlined,
+              //         color: Colors.white.withOpacity(0.85),
+              //       ),
+              //     ),
+              //   ),
+              // ),
               Column(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
@@ -386,14 +418,14 @@ double calculateResult(List<Model> models) {
                       childAspectRatio: showExtraButtons ? 1.4 : 1,
                       crossAxisCount: 4,
                       children: [
-                        iconButton(),
+                        menuToggle(),
                         normalButton("%", operator: true, color: leftOperand),
                         normalButton("DEL", operator: true, color: leftOperand),
                         normalButton("/", operator: true, color: rightOperand),
                         normalButton("7"),
                         normalButton("8"),
                         normalButton("9"),
-                        normalButton("*", operator: true, color: rightOperand),
+                        normalButton("×", operator: true, color: rightOperand),
                         normalButton("4"),
                         normalButton("5"),
                         normalButton("6"),
@@ -456,12 +488,12 @@ double calculateResult(List<Model> models) {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                extraFunctionButton("sin"),
-                extraFunctionButton("cos"),
-                extraFunctionButton("tan"),
+                extraFunctionButton("sin${inverse ? "⁻¹": ""}"),
+                extraFunctionButton("cos${inverse ? "⁻¹": ""}"),
+                extraFunctionButton("tan${inverse ? "⁻¹": ""}"),
                 extraFunctionButton("π"),
                 extraFunctionButton("e"),
-                extraFunctionButton(degrees ? "deg": "rad"),
+                modeToggle(degrees ? "deg": "rad", () => degrees = !degrees),
               ],
             ),
             Row(
@@ -469,6 +501,10 @@ double calculateResult(List<Model> models) {
               children: [
                 extraFunctionButton("mod"),
                 extraFunctionButton("|x|"),
+                extraFunctionButton(inverse ? "»" : "«"),
+                extraFunctionButton("!"),
+                extraFunctionButton("log2"),
+                modeToggle("inv", () => inverse = !inverse)
               ],
             ),
             Row(
@@ -495,7 +531,7 @@ double calculateResult(List<Model> models) {
           if(buttonText != "deg" && buttonText != "rad"){
             final addition = Model(operation: buttonText != "|x|" ? buttonText: "|");
             config.add(addition);
-            if (buttonText != "e" && buttonText != "π" && buttonText != "(" && buttonText != ")" && buttonText != "|x|") {
+            if (buttonText != "e" && buttonText != "π" && buttonText != "(" && buttonText != ")" && buttonText != "|x|" && buttonText != "!" && buttonText != "«" && buttonText != "»") {
               config.add(Model(operation: "("));
             }
           } else {
@@ -508,7 +544,7 @@ double calculateResult(List<Model> models) {
         child: SizedBox(
           height: 42.5,
             child: Center(
-              child: Text(buttonText, style: TextStyle(fontSize: 25, color: Colors.white.withOpacity(0.8))),
+              child: Text(buttonText, style: TextStyle(fontSize: 24, color: Colors.white.withOpacity(0.8))),
             ),
         ),
       ),
@@ -553,6 +589,7 @@ double calculateResult(List<Model> models) {
         });
       },
       child: Container(
+        width: double.infinity,
         padding: const EdgeInsets.all(8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -565,8 +602,7 @@ double calculateResult(List<Model> models) {
     );
   }
 
-  Widget iconButton({Color color = leftOperand}) {
-
+  Widget menuToggle() {
     return GestureDetector(
       onTapDown: (details) => toggleExtraButtons(),
       child: Padding(
@@ -577,11 +613,25 @@ double calculateResult(List<Model> models) {
             gradient: RadialGradient(
               radius: 0.5,
               center: Alignment.topLeft,
-              colors: [color.withOpacity(0.9), color]
+              colors: [leftOperand.withOpacity(0.9), leftOperand]
             )
           ),
           child: Center(
             child: Icon(showExtraButtons ? Icons.arrow_downward_rounded: Icons.arrow_upward_rounded, color: Colors.white, size: 28),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget modeToggle(String displayText, void Function() func) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(func),
+        child: SizedBox(
+          height: 42.5,
+          child: Center(
+            child: Text(displayText, style: const TextStyle(fontSize: 25, color: Color(0xFF75b6c7))),
           ),
         ),
       ),

@@ -31,9 +31,13 @@ class _MyHomePageState extends State<MainPage> {
 
   double? previewResult;
 
+  String errorMessage = "";
+
   bool showExtraButtons = false;
 
   bool degrees = true;
+  bool inverse = false;
+  bool eyeComfort = false;
 
   void toggleExtraButtons() {
     setState(() {
@@ -50,10 +54,15 @@ class _MyHomePageState extends State<MainPage> {
   }
 
   double roundFloatError(double value) {
-    return double.parse(value.toStringAsFixed(15));
+    return double.parse(value.toStringAsFixed(12));
   }
 
   double? getResult ({ bool shouldreset = true }) {
+    if (config.isEmpty) {
+      errorMessage = "";
+      return null;
+    }
+
     try {
       double result = calculateResult(config);
 
@@ -71,158 +80,228 @@ class _MyHomePageState extends State<MainPage> {
 
       return result;
     } catch (e) {
+      if (config.length > 1 && e.toString().contains(":")) {
+        errorMessage = e.toString().split(":")[1];
+      }
       debugPrint(e.toString());
     }
+
     return null;
   }
 
-  double calculateResult(List<Model> models) {
-    List<dynamic> tokens = [];
+double calculateResult(List<Model> models) {
+  List<dynamic> tokens = [];
 
-    // Convert models to tokens
-    for (var i = 0; i < models.length; i++) {
-      var m = models[i];
-      if (m.value != null) {
-        tokens.add(m.value);
-        if (i + 1 < models.length) {
-          var next = models[i + 1];
-          // Insert '*' if next token is π, e, '(' or "%"
-          if (next.operation == "π" || next.operation == "e" || next.operation == "(" || next.operation == "%") {
-            tokens.add('*');
-          }
+  // Convert models to tokens
+  for (int i = 0; i < models.length; i++) {
+    Model m = models[i];
+    if (m.value != null) {
+      tokens.add(m.value);
+      if (i + 1 < models.length) {
+        Model next = models[i + 1];
+        // Insert multiplication if next token is π, e, '(' or '%'
+        if (["π", "e", "(", "√", "ln", "log", "log2", "sin", "cos", "tan", "sin⁻¹", "cos⁻¹", "tan⁻¹"].contains(next.operation)) {
+          tokens.add('×');
         }
-      } else if (m.operation != null) {
-        if (m.operation == "π") {
-          tokens.add(pi);
-        } else if (m.operation == "e") {
-          tokens.add(e);
-        } else if (m.operation == "%"){
-          tokens.add(0.01);
-        } else {
-          tokens.add(m.operation);
-          // Insert '*' if operation is ')' and next token is a number, π, e, '(' or "%"
-          if (m.operation == ")" && i + 1 < models.length) {
-            var next = models[i + 1];
-            if (next.value != null || next.operation == "π" || next.operation == "e" || next.operation == "(" || next.operation == "%") {
-              tokens.add('*');
-            }
-          }
-        }
+      }
+    } else if (m.operation != null) {
+      if (m.operation == "π") {
+        tokens.add(pi);
+      } else if (m.operation == "e") {
+        tokens.add(e);
       } else {
-        throw const FormatException("Invalid model");
-      }
-    }
-
-    // Function to apply an operation
-    double applyOperation(String op, double left, double right) {
-      switch (op) {
-        case '+':
-          return left + right;
-        case '-':
-          return left - right;
-        case '*':
-          return left * right;
-        case '/':
-          if (right == 0) throw Exception('Division by zero');
-          return left / right;
-        case '^':
-          return pow(left, right) as double;
-        default:
-          throw FormatException("Unsupported operation: $op");
-      }
-    }
-
-    // Function to apply a unary operation
-    double applyUnaryOperation(String op, double operand) {
-      double result;
-      switch (op) {
-        case 'log':
-          result = log(operand) / ln10;
-          break;
-        case 'ln':
-          result = log(operand);
-          break;
-        case 'sin':
-          result = sin(degrees ? (operand * pi / 180) : operand);
-          break;
-        case 'cos':
-          result = cos(degrees ? (operand * pi / 180) : operand);
-          break;
-        case 'tan':
-          result = tan(degrees ? (operand * pi / 180) : operand);
-          break;
-        case '√':
-          result = sqrt(operand);
-          break;
-        default:
-          throw FormatException("Unsupported unary operation: $op");
-      }
-      return roundFloatError(result);
-    }
-
-    // Evaluate expression
-  double evaluateExpression(List<dynamic> tokens) {
-      // Handle parentheses
-      int openIndex;
-      while ((openIndex = tokens.lastIndexOf('(')) != -1) {
-        int closeIndex = tokens.indexOf(')', openIndex);
-        double value = evaluateExpression(tokens.sublist(openIndex + 1, closeIndex));
-        tokens.replaceRange(openIndex, closeIndex + 1, [value]);
-      }
-
-      // Handle unary operations
-      for (var op in ["log", 'ln', 'sin', 'cos', 'tan', '√']) {
-        while (tokens.contains(op)) {
-          int index = tokens.indexOf(op);
-          double operand = tokens[index + 1];
-          double result = applyUnaryOperation(op, operand);
-          tokens.replaceRange(index, index + 2, [result]);
+        tokens.add(m.operation);
+        // Insert multiplication if next token is π, e, '(' or '%'
+        if (m.operation == ")" && i + 1 < models.length) {
+          Model next = models[i + 1];
+          if (next.value != null || ["π", "e", "(", "√", "ln", "log", "log2", "sin", "cos", "tan", "sin⁻¹", "cos⁻¹", "tan⁻¹"].contains(next.operation)) {
+            tokens.add('×');
+          }
         }
       }
+    } else {
+      throw Exception("Invalid model");
+    }
+  }
 
-      // Handle exponentiation
-      while (tokens.contains('^')) {
-        int index = tokens.indexOf('^');
+  // Function to apply an operation
+  double applyOperation(String op, double left, double right) {
+    switch (op) {
+      case '+':
+        return left + right;
+      case '-':
+        return left - right;
+      case '×':
+        return left * right;
+      case '/':
+        if (right == 0) throw Exception('Division by zero');
+        return left / right;
+      case '^':
+        return pow(left, right) as double;
+      case 'mod':
+        return left % right;
+      case '«':
+        return (left.toInt() << right.toInt()).toDouble();
+      case '»':
+        return (left.toInt() >> right.toInt()).toDouble();
+      default:
+        throw Exception("Unsupported operation: $op");
+    }
+  }
+
+  double factorial(double iterations) {
+    double result = 1.0;
+
+    for (int i = 2; i <= iterations; i++) {
+      result *= i;
+    }
+    
+    return result;
+  }
+
+  // Function to apply a unary operation
+  double applyUnaryOperation(String op, double operand) {
+    double result;
+    switch (op) {
+      case 'sin':
+        result = sin(degrees ? (operand * pi / 180) : operand);
+        break;
+      case 'sin⁻¹':
+        result = asin(degrees ? (operand * pi / 180) : operand);
+        break;
+      case 'cos':
+        result = cos(degrees ? (operand * pi / 180) : operand);
+        break;
+      case 'cos⁻¹':
+        result = acos(degrees ? (operand * pi / 180) : operand);
+        break;
+      case 'tan':
+        result = tan(degrees ? (operand * pi / 180) : operand);
+        break;
+      case 'tan⁻¹':
+        result = atan(degrees ? (operand * pi / 180) : operand);
+        break;
+      case 'log':
+        result = log(operand) / ln10;
+        break;
+      case 'log2':
+        result = log(operand) / ln2;
+        break;
+      case 'ln':
+        result = log(operand);
+        break;
+      case '√':
+        result = sqrt(operand);
+        break;
+      case '!':
+        return factorial(operand);
+      case '%':
+        return operand * 0.01;
+      default:
+        throw Exception("Unsupported unary operation: $op");
+    }
+
+    return roundFloatError(result);
+  }
+
+  // Evaluate expression
+  double evaluateExpression(List<dynamic> tokens) {
+    debugPrint("tokens $tokens");
+
+    // Handle parentheses
+    int openIndex;
+    while ((openIndex = tokens.lastIndexOf('(')) != -1) {
+      int closeIndex = tokens.indexOf(')', openIndex);
+      double value = evaluateExpression(tokens.sublist(openIndex + 1, closeIndex));
+      tokens.replaceRange(openIndex, closeIndex + 1, [value]);
+    }
+
+    // Handle absolute value
+    while ((openIndex = tokens.indexOf('|')) != -1) {
+      int closeIndex = tokens.indexOf('|', openIndex + 1);
+      if (closeIndex == -1) throw Exception("missing end '|'");
+      double value = evaluateExpression(tokens.sublist(openIndex + 1, closeIndex));
+      tokens.replaceRange(openIndex, closeIndex + 1, [value.abs()]);
+    }
+
+    // Handle ending unary operations
+    for (String op in ['!', '%']) {
+      while (tokens.contains(op)) {
+        int index = tokens.indexOf(op);
+        double operand = tokens[index - 1];
+        double result = applyUnaryOperation(op, operand);
+        tokens.replaceRange(index -1, index + 1, [result]);
+      }
+    }
+
+    // Handle exponentiation
+    for (String op in ["»", "«", "^"]) {
+      while (tokens.contains(op)) {
+        int index = tokens.indexOf(op);
         double left = tokens[index - 1];
         double right = tokens[index + 1];
-        double result = applyOperation('^', left, right);
+        double result = applyOperation(op, left, right);
         tokens.replaceRange(index - 1, index + 2, [result]);
       }
-
-      // Handle multiplication and division
-      int multIndex;
-      while ((multIndex = tokens.indexWhere((t) => t == '*' || t == '/')) != -1) {
-        double left = tokens[multIndex - 1];
-        double right = tokens[multIndex + 1];
-        double result = applyOperation(tokens[multIndex], left, right);
-        tokens.replaceRange(multIndex - 1, multIndex + 2, [result]);
-      }
-
-      // Handle addition and subtraction
-      while (tokens.length > 1) {
-        double left = tokens[0];
-        double right = tokens[2];
-        double result = applyOperation(tokens[1], left, right);
-        tokens.replaceRange(0, 3, [result]);
-      }
-
-      return roundFloatError(tokens[0]);
     }
 
-    return evaluateExpression(tokens);
+    // Handle starting unary operations
+    for (String op in ['sin', 'sin⁻¹', 'cos', 'cos⁻¹', 'tan', 'tan⁻¹', 'log', 'log2', 'ln', '√']) {
+      while (tokens.contains(op)) {
+        int index = tokens.indexOf(op);
+        double operand = tokens[index + 1];
+        double result = applyUnaryOperation(op, operand);
+        tokens.replaceRange(index, index + 2, [result]);
+      }
+    }
+
+    // Handle multiplication and division
+    int multIndex;
+    while ((multIndex = tokens.indexWhere((t) => t == '×' || t == '/')) != -1) {
+      double left = tokens[multIndex - 1];
+      double right = tokens[multIndex + 1];
+      double result = applyOperation(tokens[multIndex], left, right);
+      tokens.replaceRange(multIndex - 1, multIndex + 2, [result]);
+    }
+
+    for (int j = 0; j < tokens.length; j++) {
+      if (j != tokens.length - 1 && (j - 1 < 0 || tokens[j -1] == "-") && tokens[j] == "-" &&  tokens[j + 1].runtimeType == double) {
+        tokens.replaceRange(j, j + 2, [double.parse(tokens[j].toString() + tokens[j + 1].toString())]);
+      }
+    }
+
+    debugPrint("input tokens for a & s $tokens");
+
+    // Handle addition and subtraction
+    while (tokens.length > 1) {
+      double left = tokens[0];
+      double right = tokens[2];
+      double result = applyOperation(tokens[1], left, right);
+      tokens.replaceRange(0, 3, [result]);
+    }
+
+    return roundFloatError(tokens[0]);
   }
+
+  return roundFloatError(evaluateExpression(tokens));
+}
+
 
   void handleButtonPress(String buttonText, bool operator, Color color){
     if (operator) {
       switch (buttonText) {
         case "C": config.clear(); break;
-        case "^": toggleExtraButtons(); return;
-        case "DEL": config.removeLast(); break;
+        case "DEL": if (config.isNotEmpty) config.removeLast(); break;
         case ".": config.last.isDecimal = true; break;
-        case "=": getResult(); setState(() {}); return;
+        case "=": setState(getResult); return;
         default:
-          final addition = Model(operation: buttonText);
-          config.add(addition);
+          if(config.isEmpty || config.last.value != null || ((buttonText == "-" || buttonText == ")" || buttonText == "("))) {
+            debugPrint("adding opperand: \"$buttonText\"");
+            final addition = Model(operation: buttonText);
+            config.add(addition);
+          } else {
+            debugPrint("not adding opperand");
+          }
       }
     } else {
       if (config.isNotEmpty && config.last.value != null) {
@@ -259,7 +338,7 @@ class _MyHomePageState extends State<MainPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
-      drawer: drawer(),
+      drawer: drawer(context),
       body: SafeArea(
         child: Container(
           decoration: BoxDecoration(
@@ -290,13 +369,35 @@ class _MyHomePageState extends State<MainPage> {
                   ),
                 ),
               ),
+              // Positioned(
+              //   top: 15,
+              //   right: 10,
+              //   child: GestureDetector(
+              //     onTap: () {
+              //       setState(() {
+              //         eyeComfort = !eyeComfort;
+              //       });
+              //     },
+              //     child: Container(
+              //       padding: const EdgeInsets.all(6),
+              //       decoration: const BoxDecoration(
+              //         color: Color(0xFF5a6372),
+              //         borderRadius: BorderRadius.all(Radius.circular(25))
+              //       ),
+              //       child: Icon(
+              //         Icons.remove_red_eye_outlined,
+              //         color: Colors.white.withOpacity(0.85),
+              //       ),
+              //     ),
+              //   ),
+              // ),
               Column(
                 mainAxisAlignment: MainAxisAlignment.end,
-                children: <Widget>[
+                children: [
                   Expanded(
                     child: Container(
-                      padding: const EdgeInsets.only(right: 12),
-                      alignment: Alignment.bottomRight,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      alignment: Alignment.bottomLeft,
                       child: Text(
                         config.map((e) => displayString(e)).join(),
                         style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.8)),
@@ -304,9 +405,9 @@ class _MyHomePageState extends State<MainPage> {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.only(top: 10, bottom: 10, right: 12),
-                    alignment: Alignment.bottomRight,
-                    child: Text((previewResult.toString().endsWith(".0") ? (previewResult ?? "").toString().replaceAll(".0", ""): (previewResult ?? "")).toString(), style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.8))),
+                    padding: const EdgeInsets.fromLTRB(12, 5, 12, 10),
+                    alignment: Alignment.bottomLeft,
+                    child: Text((previewResult ?? errorMessage).toString().replaceAll(RegExp(r"(\.0*|(?<=\.\d*)0+)$"), ""), style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.8))),
                   ),
                   showExtraButtons ? extraButtonsStrip() : const SizedBox.shrink(),
                   Container(
@@ -316,15 +417,15 @@ class _MyHomePageState extends State<MainPage> {
                     child: GridView.count(
                       childAspectRatio: showExtraButtons ? 1.4 : 1,
                       crossAxisCount: 4,
-                      children: <Widget>[
-                        normalButton("^", operator: true, color: leftOperand),
+                      children: [
+                        menuToggle(),
                         normalButton("%", operator: true, color: leftOperand),
                         normalButton("DEL", operator: true, color: leftOperand),
                         normalButton("/", operator: true, color: rightOperand),
                         normalButton("7"),
                         normalButton("8"),
                         normalButton("9"),
-                        normalButton("*", operator: true, color: rightOperand),
+                        normalButton("×", operator: true, color: rightOperand),
                         normalButton("4"),
                         normalButton("5"),
                         normalButton("6"),
@@ -377,42 +478,62 @@ class _MyHomePageState extends State<MainPage> {
   Widget extraButtonsStrip() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 3),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              extraFunctionButton("sin"),
-              extraFunctionButton("cos"),
-              extraFunctionButton("tan"),
-              extraFunctionButton("π"),
-              extraFunctionButton("e"),
-              extraFunctionButton(degrees ? "deg": "rad"),
-            ],
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              extraFunctionButton("("),
-              extraFunctionButton(")"),
-              extraFunctionButton("√"),
-              extraFunctionButton("^"),
-              extraFunctionButton("log"),
-              extraFunctionButton("ln"),
-            ],
-          ),
-        ],
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.black26,
+          borderRadius: BorderRadius.circular(5)
+        ),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                extraFunctionButton("sin${inverse ? "⁻¹": ""}"),
+                extraFunctionButton("cos${inverse ? "⁻¹": ""}"),
+                extraFunctionButton("tan${inverse ? "⁻¹": ""}"),
+                extraFunctionButton("π"),
+                extraFunctionButton("e"),
+                modeToggle(degrees ? "deg": "rad", () => degrees = !degrees),
+              ],
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                extraFunctionButton("mod"),
+                extraFunctionButton("|x|"),
+                extraFunctionButton(inverse ? "»" : "«"),
+                extraFunctionButton("!"),
+                extraFunctionButton("log2"),
+                modeToggle("inv", () => inverse = !inverse)
+              ],
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                extraFunctionButton("("),
+                extraFunctionButton(")"),
+                extraFunctionButton("√"),
+                extraFunctionButton("^"),
+                extraFunctionButton("log"),
+                extraFunctionButton("ln"),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget extraFunctionButton(String buttonText){
+  Widget extraFunctionButton(String buttonText) {
     return Expanded(
       child: GestureDetector(
         onTap: () {
           if(buttonText != "deg" && buttonText != "rad"){
-            final addition = Model(operation: buttonText);
+            final addition = Model(operation: buttonText != "|x|" ? buttonText: "|");
             config.add(addition);
+            if (buttonText != "e" && buttonText != "π" && buttonText != "(" && buttonText != ")" && buttonText != "|x|" && buttonText != "!" && buttonText != "«" && buttonText != "»") {
+              config.add(Model(operation: "("));
+            }
           } else {
             degrees = !degrees;
           }
@@ -420,18 +541,17 @@ class _MyHomePageState extends State<MainPage> {
             previewResult = getResult(shouldreset: false);
           });
         },
-        child: Container(
-          color: Colors.black26,
-          height: 50,
+        child: SizedBox(
+          height: 42.5,
             child: Center(
-              child: Text(buttonText, style: TextStyle(fontSize: 28, color: Colors.white.withOpacity(0.8))),
+              child: Text(buttonText, style: TextStyle(fontSize: 24, color: Colors.white.withOpacity(0.8))),
             ),
         ),
       ),
     );
   }
 
-  Widget drawer(){
+  Widget drawer(BuildContext context){
     if(history.isEmpty){
       return const Center(
         child: Text("ingen historik att visa", style: TextStyle(fontSize: 30, color: Colors.white)),
@@ -440,11 +560,15 @@ class _MyHomePageState extends State<MainPage> {
 
     return SafeArea(
       child: Container(
-        color: Colors.black87,
+        width: MediaQuery.sizeOf(context).width * 0.55,
+        alignment: Alignment.centerLeft,
         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 15),
+        decoration: const BoxDecoration(
+          color: Color(0xff151515),
+          borderRadius: BorderRadius.only(topRight: Radius.circular(28), bottomRight: Radius.circular(28))
+        ),
         child: ListView.builder(
           shrinkWrap: true,
-          reverse: true,
           itemCount: history.length,
           itemBuilder: (BuildContext context, int index) { 
             return drawerCard(history[index]);
@@ -465,14 +589,51 @@ class _MyHomePageState extends State<MainPage> {
         });
       },
       child: Container(
+        width: double.infinity,
         padding: const EdgeInsets.all(8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(item.models.map((e) => displayString(e)).join(" "), style: const TextStyle(fontSize: 16, color: Colors.white)),
-            Text(item.result.toString(), style: const TextStyle(fontSize: 19, color: Colors.white)),
+            Text(item.models.map((e) => displayString(e)).join(""), style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.75))),
+            Text(item.result.toStringAsFixed(8).replaceAll(RegExp(r"(\.0*|(?<=\.\d*)0+)$"), ""), style: TextStyle(fontSize: 19, color: Colors.white.withOpacity(0.75))),
           ],
         )
+      ),
+    );
+  }
+
+  Widget menuToggle() {
+    return GestureDetector(
+      onTapDown: (details) => toggleExtraButtons(),
+      child: Padding(
+        padding: const EdgeInsets.all(4),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: const BorderRadius.all(Radius.circular(12)),
+            gradient: RadialGradient(
+              radius: 0.5,
+              center: Alignment.topLeft,
+              colors: [leftOperand.withOpacity(0.9), leftOperand]
+            )
+          ),
+          child: Center(
+            child: Icon(showExtraButtons ? Icons.arrow_downward_rounded: Icons.arrow_upward_rounded, color: Colors.white, size: 28),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget modeToggle(String displayText, void Function() func) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(func),
+        child: SizedBox(
+          height: 42.5,
+          child: Center(
+            child: Text(displayText, style: const TextStyle(fontSize: 25, color: Color(0xFF75b6c7))),
+          ),
+        ),
       ),
     );
   }

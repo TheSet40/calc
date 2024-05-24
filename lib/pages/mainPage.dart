@@ -89,202 +89,206 @@ class _MyHomePageState extends State<MainPage> {
     return null;
   }
 
-double calculateResult(List<Model> models) {
-  List<dynamic> tokens = [];
+  double calculateResult(List<Model> models) {
+    List<dynamic> tokens = [];
 
-  // Convert models to tokens
-  for (int i = 0; i < models.length; i++) {
-    Model m = models[i];
-    if (m.value != null) {
-      tokens.add(m.value);
-      if (i + 1 < models.length) {
-        Model next = models[i + 1];
-        // Insert multiplication if next token is π, e, '(' or '%'
-        if (["π", "e", "(", "√", "ln", "log", "log2", "sin", "cos", "tan", "sin⁻¹", "cos⁻¹", "tan⁻¹"].contains(next.operation)) {
-          tokens.add('×');
-        }
-      }
-    } else if (m.operation != null) {
-      if (m.operation == "π") {
-        tokens.add(pi);
-      } else if (m.operation == "e") {
-        tokens.add(e);
-      } else {
-        tokens.add(m.operation);
-        // Insert multiplication if next token is π, e, '(' or '%'
-        if (m.operation == ")" && i + 1 < models.length) {
+    // Convert models to tokens
+    for (int i = 0; i < models.length; i++) {
+      Model m = models[i];
+      // print("next model: (${m.value}, ${m.operation})");
+
+      if (m.value != null) {
+        tokens.add(m.value);
+        if (i + 1 < models.length) {
           Model next = models[i + 1];
-          if (next.value != null || ["π", "e", "(", "√", "ln", "log", "log2", "sin", "cos", "tan", "sin⁻¹", "cos⁻¹", "tan⁻¹"].contains(next.operation)) {
+          // Insert multiplication if next token is π, e, '(' or '%'
+          if (["π", "e", "E", "(", "√", "ln", "log", "log2", "sin", "cos", "tan", "sin⁻¹", "cos⁻¹", "tan⁻¹"].contains(next.operation)) {
             tokens.add('×');
           }
         }
-      }
-    } else {
-      throw Exception("Invalid model");
-    }
-  }
-
-  // Function to apply an operation
-  double applyOperation(String op, double left, double right) {
-    switch (op) {
-      case '+':
-        return left + right;
-      case '-':
-        return left - right;
-      case '×':
-        return left * right;
-      case '/':
-        if (right == 0) throw Exception('Division by zero');
-        return left / right;
-      case '^':
-        return pow(left, right) as double;
-      case 'mod':
-        return left % right;
-      case '«':
-        return (left.toInt() << right.toInt()).toDouble();
-      case '»':
-        return (left.toInt() >> right.toInt()).toDouble();
-      default:
-        throw Exception("Unsupported operation: $op");
-    }
-  }
-
-  double factorial(double iterations) {
-    double result = 1.0;
-
-    for (int i = 2; i <= iterations; i++) {
-      result *= i;
-    }
-    
-    return result;
-  }
-
-  // Function to apply a unary operation
-  double applyUnaryOperation(String op, double operand) {
-    double result;
-    switch (op) {
-      case 'sin':
-        result = sin(degrees ? (operand * pi / 180) : operand);
-        break;
-      case 'sin⁻¹':
-        result = asin(degrees ? (operand * pi / 180) : operand);
-        break;
-      case 'cos':
-        result = cos(degrees ? (operand * pi / 180) : operand);
-        break;
-      case 'cos⁻¹':
-        result = acos(degrees ? (operand * pi / 180) : operand);
-        break;
-      case 'tan':
-        result = tan(degrees ? (operand * pi / 180) : operand);
-        break;
-      case 'tan⁻¹':
-        result = atan(degrees ? (operand * pi / 180) : operand);
-        break;
-      case 'log':
-        result = log(operand) / ln10;
-        break;
-      case 'log2':
-        result = log(operand) / ln2;
-        break;
-      case 'ln':
-        result = log(operand);
-        break;
-      case '√':
-        result = sqrt(operand);
-        break;
-      case '!':
-        return factorial(operand);
-      case '%':
-        return operand * 0.01;
-      default:
-        throw Exception("Unsupported unary operation: $op");
-    }
-
-    return roundFloatError(result);
-  }
-
-  // Evaluate expression
-  double evaluateExpression(List<dynamic> tokens) {
-    debugPrint("tokens $tokens");
-
-    // Handle parentheses
-    int openIndex;
-    while ((openIndex = tokens.lastIndexOf('(')) != -1) {
-      int closeIndex = tokens.indexOf(')', openIndex);
-      double value = evaluateExpression(tokens.sublist(openIndex + 1, closeIndex));
-      tokens.replaceRange(openIndex, closeIndex + 1, [value]);
-    }
-
-    // Handle absolute value
-    while ((openIndex = tokens.indexOf('|')) != -1) {
-      int closeIndex = tokens.indexOf('|', openIndex + 1);
-      if (closeIndex == -1) throw Exception("missing end '|'");
-      double value = evaluateExpression(tokens.sublist(openIndex + 1, closeIndex));
-      tokens.replaceRange(openIndex, closeIndex + 1, [value.abs()]);
-    }
-
-    // Handle ending unary operations
-    for (String op in ['!', '%']) {
-      while (tokens.contains(op)) {
-        int index = tokens.indexOf(op);
-        double operand = tokens[index - 1];
-        double result = applyUnaryOperation(op, operand);
-        tokens.replaceRange(index -1, index + 1, [result]);
+      } else if (m.operation != null) {
+        if (m.operation == "π") {
+          tokens.add(pi);
+        } else if (m.operation == "e") {
+          tokens.add(e);
+        } else if (m.operation == "E") {
+          tokens.addAll([10.0, "^"]);
+        } else {
+          tokens.add(m.operation);
+          // Insert multiplication if next token is π, e, '(' or '%'
+          if (m.operation == ")" && i + 1 < models.length) {
+            Model next = models[i + 1];
+            if (next.value != null || ["π", "e", "(", "√", "ln", "log", "log2", "sin", "cos", "tan", "sin⁻¹", "cos⁻¹", "tan⁻¹"].contains(next.operation)) {
+              tokens.add('×');
+            }
+          }
+        }
+      } else {
+        throw Exception("Invalid model");
       }
     }
 
-    // Handle exponentiation
-    for (String op in ["»", "«", "^"]) {
-      while (tokens.contains(op)) {
-        int index = tokens.indexOf(op);
-        double left = tokens[index - 1];
-        double right = tokens[index + 1];
-        double result = applyOperation(op, left, right);
-        tokens.replaceRange(index - 1, index + 2, [result]);
+    // Function to apply an operation
+    double applyOperation(String op, double left, double right) {
+      switch (op) {
+        case '+':
+          return left + right;
+        case '-':
+          return left - right;
+        case '×':
+          return left * right;
+        case '/':
+          if (right == 0) throw Exception('Division by zero');
+          return left / right;
+        case '^':
+          return pow(left, right) as double;
+        case 'mod':
+          return left % right;
+        case '«':
+          return (left.toInt() << right.toInt()).toDouble();
+        case '»':
+          return (left.toInt() >> right.toInt()).toDouble();
+        default:
+          throw Exception("Unsupported operation: $op");
       }
     }
 
-    // Handle starting unary operations
-    for (String op in ['sin', 'sin⁻¹', 'cos', 'cos⁻¹', 'tan', 'tan⁻¹', 'log', 'log2', 'ln', '√']) {
-      while (tokens.contains(op)) {
-        int index = tokens.indexOf(op);
-        double operand = tokens[index + 1];
-        double result = applyUnaryOperation(op, operand);
-        tokens.replaceRange(index, index + 2, [result]);
+    double factorial(double iterations) {
+      double result = 1.0;
+
+      for (int i = 2; i <= iterations; i++) {
+        result *= i;
       }
+      
+      return result;
     }
 
-    // Handle multiplication and division
-    int multIndex;
-    while ((multIndex = tokens.indexWhere((t) => t == '×' || t == '/')) != -1) {
-      double left = tokens[multIndex - 1];
-      double right = tokens[multIndex + 1];
-      double result = applyOperation(tokens[multIndex], left, right);
-      tokens.replaceRange(multIndex - 1, multIndex + 2, [result]);
-    }
-
-    for (int j = 0; j < tokens.length; j++) {
-      if (j != tokens.length - 1 && (j - 1 < 0 || tokens[j -1] == "-") && tokens[j] == "-" &&  tokens[j + 1].runtimeType == double) {
-        tokens.replaceRange(j, j + 2, [double.parse(tokens[j].toString() + tokens[j + 1].toString())]);
+    // Function to apply a unary operation
+    double applyUnaryOperation(String op, double operand) {
+      double result;
+      switch (op) {
+        case 'sin':
+          result = sin(degrees ? (operand * pi / 180) : operand);
+          break;
+        case 'sin⁻¹':
+          result = asin(degrees ? (operand * pi / 180) : operand);
+          break;
+        case 'cos':
+          result = cos(degrees ? (operand * pi / 180) : operand);
+          break;
+        case 'cos⁻¹':
+          result = acos(degrees ? (operand * pi / 180) : operand);
+          break;
+        case 'tan':
+          result = tan(degrees ? (operand * pi / 180) : operand);
+          break;
+        case 'tan⁻¹':
+          result = atan(degrees ? (operand * pi / 180) : operand);
+          break;
+        case 'log':
+          result = log(operand) / ln10;
+          break;
+        case 'log2':
+          result = log(operand) / ln2;
+          break;
+        case 'ln':
+          result = log(operand);
+          break;
+        case '√':
+          result = sqrt(operand);
+          break;
+        case '!':
+          return factorial(operand);
+        case '%':
+          return operand * 0.01;
+        default:
+          throw Exception("Unsupported unary operation: $op");
       }
+
+      return roundFloatError(result);
     }
 
-    debugPrint("input tokens for a & s $tokens");
+    // Evaluate expression
+    double evaluateExpression(List<dynamic> tokens) {
+      debugPrint("tokens $tokens");
 
-    // Handle addition and subtraction
-    while (tokens.length > 1) {
-      double left = tokens[0];
-      double right = tokens[2];
-      double result = applyOperation(tokens[1], left, right);
-      tokens.replaceRange(0, 3, [result]);
+      // Handle parentheses
+      int openIndex;
+      while ((openIndex = tokens.lastIndexOf('(')) != -1) {
+        int closeIndex = tokens.indexOf(')', openIndex);
+        double value = evaluateExpression(tokens.sublist(openIndex + 1, closeIndex));
+        tokens.replaceRange(openIndex, closeIndex + 1, [value]);
+      }
+
+      // Handle absolute value
+      while ((openIndex = tokens.indexOf('|')) != -1) {
+        int closeIndex = tokens.indexOf('|', openIndex + 1);
+        if (closeIndex == -1) throw Exception("missing end '|'");
+        double value = evaluateExpression(tokens.sublist(openIndex + 1, closeIndex));
+        tokens.replaceRange(openIndex, closeIndex + 1, [value.abs()]);
+      }
+
+      // Handle ending unary operations
+      for (String op in ['!', '%']) {
+        while (tokens.contains(op)) {
+          int index = tokens.indexOf(op);
+          double operand = tokens[index - 1];
+          double result = applyUnaryOperation(op, operand);
+          tokens.replaceRange(index -1, index + 1, [result]);
+        }
+      }
+
+      // Handle exponentiation
+      for (String op in ["»", "«", "^"]) {
+        while (tokens.contains(op)) {
+          int index = tokens.indexOf(op);
+          double left = tokens[index - 1];
+          double right = tokens[index + 1];
+          double result = applyOperation(op, left, right);
+          tokens.replaceRange(index - 1, index + 2, [result]);
+        }
+      }
+
+      // Handle starting unary operations
+      for (String op in ['sin', 'sin⁻¹', 'cos', 'cos⁻¹', 'tan', 'tan⁻¹', 'log', 'log2', 'ln', '√']) {
+        while (tokens.contains(op)) {
+          int index = tokens.indexOf(op);
+          double operand = tokens[index + 1];
+          double result = applyUnaryOperation(op, operand);
+          tokens.replaceRange(index, index + 2, [result]);
+        }
+      }
+
+      // Handle multiplication and division
+      int multIndex;
+      while ((multIndex = tokens.indexWhere((t) => t == '×' || t == '/')) != -1) {
+        double left = tokens[multIndex - 1];
+        double right = tokens[multIndex + 1];
+        double result = applyOperation(tokens[multIndex], left, right);
+        tokens.replaceRange(multIndex - 1, multIndex + 2, [result]);
+      }
+
+      for (int j = 0; j < tokens.length; j++) {
+        if (j != tokens.length - 1 && (j - 1 < 0 || tokens[j -1] == "-") && tokens[j] == "-" &&  tokens[j + 1].runtimeType == double) {
+          tokens.replaceRange(j, j + 2, [double.parse(tokens[j].toString() + tokens[j + 1].toString())]);
+        }
+      }
+
+      debugPrint("input tokens for a & s $tokens");
+
+      // Handle addition and subtraction
+      while (tokens.length > 1) {
+        double left = tokens[0];
+        double right = tokens[2];
+        double result = applyOperation(tokens[1], left, right);
+        tokens.replaceRange(0, 3, [result]);
+      }
+
+      return roundFloatError(tokens[0]);
     }
 
-    return roundFloatError(tokens[0]);
+    return roundFloatError(evaluateExpression(tokens));
   }
-
-  return roundFloatError(evaluateExpression(tokens));
-}
 
 
   void handleButtonPress(String buttonText, bool operator, Color color){
@@ -295,13 +299,10 @@ double calculateResult(List<Model> models) {
         case ".": config.last.isDecimal = true; break;
         case "=": setState(getResult); return;
         default:
-          if(config.isEmpty || config.last.value != null || ((buttonText == "-" || buttonText == ")" || buttonText == "("))) {
-            debugPrint("adding opperand: \"$buttonText\"");
-            final addition = Model(operation: buttonText);
-            config.add(addition);
-          } else {
-            debugPrint("not adding opperand");
-          }
+          debugPrint("adding opperand: \"$buttonText\"");
+          final addition = Model(operation: buttonText);
+          config.add(addition);
+
       }
     } else {
       if (config.isNotEmpty && config.last.value != null) {
@@ -409,16 +410,16 @@ double calculateResult(List<Model> models) {
                     alignment: Alignment.bottomLeft,
                     child: Text((previewResult ?? errorMessage).toString().replaceAll(RegExp(r"(\.0*|(?<=\.\d*)0+)$"), ""), style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.8))),
                   ),
-                  showExtraButtons ? extraButtonsStrip() : const SizedBox.shrink(),
+                  extraButtonsStrip(),
                   Container(
-                    height: showExtraButtons ? 320 : 445,
-                    padding: const EdgeInsets.only(left: 8, right: 8, top: 5),
+                    height: 308,
+                    padding: const EdgeInsets.only(left: 8, right: 8, top: 4),
                     alignment: Alignment.bottomCenter,
                     child: GridView.count(
-                      childAspectRatio: showExtraButtons ? 1.4 : 1,
+                      childAspectRatio: 1.45,
                       crossAxisCount: 4,
                       children: [
-                        menuToggle(),
+                        normalButton("E", operator: true, color: leftOperand),
                         normalButton("%", operator: true, color: leftOperand),
                         normalButton("DEL", operator: true, color: leftOperand),
                         normalButton("/", operator: true, color: rightOperand),
@@ -481,7 +482,7 @@ double calculateResult(List<Model> models) {
       child: Container(
         decoration: BoxDecoration(
           color: Colors.black26,
-          borderRadius: BorderRadius.circular(5)
+          borderRadius: BorderRadius.circular(8)
         ),
         child: Column(
           children: [
@@ -541,11 +542,11 @@ double calculateResult(List<Model> models) {
             previewResult = getResult(shouldreset: false);
           });
         },
-        child: SizedBox(
-          height: 42.5,
-            child: Center(
-              child: Text(buttonText, style: TextStyle(fontSize: 24, color: Colors.white.withOpacity(0.8))),
-            ),
+        child: Padding(
+          padding: const EdgeInsets.all(2),
+          child: Center(
+            child: Text(buttonText, style: TextStyle(fontSize: 24, color: Colors.white.withOpacity(0.8))),
+          ),
         ),
       ),
     );
@@ -598,28 +599,6 @@ double calculateResult(List<Model> models) {
             Text(item.result.toStringAsFixed(8).replaceAll(RegExp(r"(\.0*|(?<=\.\d*)0+)$"), ""), style: TextStyle(fontSize: 19, color: Colors.white.withOpacity(0.75))),
           ],
         )
-      ),
-    );
-  }
-
-  Widget menuToggle() {
-    return GestureDetector(
-      onTapDown: (details) => toggleExtraButtons(),
-      child: Padding(
-        padding: const EdgeInsets.all(4),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: const BorderRadius.all(Radius.circular(12)),
-            gradient: RadialGradient(
-              radius: 0.5,
-              center: Alignment.topLeft,
-              colors: [leftOperand.withOpacity(0.9), leftOperand]
-            )
-          ),
-          child: Center(
-            child: Icon(showExtraButtons ? Icons.arrow_downward_rounded: Icons.arrow_upward_rounded, color: Colors.white, size: 28),
-          ),
-        ),
       ),
     );
   }

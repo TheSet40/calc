@@ -2,7 +2,7 @@ name: calc
 description: "A new Flutter project."
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
-version: 1.4.1
+version: 1.4.2
 
 environment:
   sdk: '>=3.2.3 <4.0.0'
@@ -14,18 +14,12 @@ dependencies:
 
   cupertino_icons: ^1.0.2
   path_provider: ^2.1.1
-  flutter_launcher_icons: ^0.13.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
 
-  flutter_lints: ^3.0.0
-
-flutter_icons:
-  android: true
-  ios: true
-  image_path: "assets/appIconCropNew.png" # Your icon file path
+  flutter_lints: ^4.0.0
 
 flutter:
 

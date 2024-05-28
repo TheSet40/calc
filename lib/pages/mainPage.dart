@@ -68,14 +68,14 @@ class _MyHomePageState extends State<MainPage> {
 
       if (shouldreset) {
         final List<Model> configCopy = List<Model>.from(config);
-        final newItem = HistoryItem(models: configCopy, result: result);
+        final newItem = HistoryItem(models: configCopy, result: result.toString());
         HistoryCache.addToHistory(historyItem: newItem);
         history.add(newItem);
 
         config.clear();
         previewResult = null;
         final decimal = !result.toString().endsWith(".0");
-        config.add(Model(value: result, isDecimal: decimal));
+        config.add(Model(value: result.toString(), isDecimal: decimal));
       }
 
       return result;
@@ -95,13 +95,12 @@ class _MyHomePageState extends State<MainPage> {
     // Convert models to tokens
     for (int i = 0; i < models.length; i++) {
       Model m = models[i];
-      // print("next model: (${m.value}, ${m.operation})");
 
       if (m.value != null) {
-        tokens.add(m.value);
+        tokens.add(double.parse(m.value ?? "0.0"));
         if (i + 1 < models.length) {
           Model next = models[i + 1];
-          // Insert multiplication if next token is π, e, '(' or '%'
+          // add implicit multiplication if next token is a number or function
           if (["π", "e", "E", "(", "√", "ln", "log", "log2", "sin", "cos", "tan", "sin⁻¹", "cos⁻¹", "tan⁻¹"].contains(next.operation)) {
             tokens.add('×');
           }
@@ -109,16 +108,28 @@ class _MyHomePageState extends State<MainPage> {
       } else if (m.operation != null) {
         if (m.operation == "π") {
           tokens.add(pi);
+          if (i + 1 < models.length) {
+            Model next = models[i + 1];
+            if (next.value != null || next.operation == "π" || next.operation == "e" || next.operation == "E") {
+              tokens.add('×');
+            }
+          }
         } else if (m.operation == "e") {
           tokens.add(e);
+          if (i + 1 < models.length) {
+            Model next = models[i + 1];
+            if (next.value != null || next.operation == "π" || next.operation == "e" || next.operation == "E") {
+              tokens.add('×');
+            }
+          }
         } else if (m.operation == "E") {
           tokens.addAll([10.0, "^"]);
         } else {
           tokens.add(m.operation);
-          // Insert multiplication if next token is π, e, '(' or '%'
+          // add implicit multiplication if next token is a number or function
           if (m.operation == ")" && i + 1 < models.length) {
             Model next = models[i + 1];
-            if (next.value != null || ["π", "e", "(", "√", "ln", "log", "log2", "sin", "cos", "tan", "sin⁻¹", "cos⁻¹", "tan⁻¹"].contains(next.operation)) {
+            if (next.value != null || ["(", "√", "ln", "log", "log2", "sin", "cos", "tan", "sin⁻¹", "cos⁻¹", "tan⁻¹"].contains(next.operation)) {
               tokens.add('×');
             }
           }
@@ -138,7 +149,7 @@ class _MyHomePageState extends State<MainPage> {
         case '×':
           return left * right;
         case '/':
-          if (right == 0) throw Exception('Division by zero');
+          if (right == 0.0) throw Exception('Division by zero');
           return left / right;
         case '^':
           return pow(left, right) as double;
@@ -274,7 +285,7 @@ class _MyHomePageState extends State<MainPage> {
         }
       }
 
-      debugPrint("input tokens for a & s $tokens");
+      // debugPrint("input tokens for a & s $tokens");
 
       // Handle addition and subtraction
       while (tokens.length > 1) {
@@ -295,30 +306,37 @@ class _MyHomePageState extends State<MainPage> {
     if (operator) {
       switch (buttonText) {
         case "C": config.clear(); break;
-        case "DEL": if (config.isNotEmpty) config.removeLast(); break;
-        case ".": config.last.isDecimal = true; break;
+        case "DEL": if (config.isNotEmpty) { 
+          if ((config.last.value ?? config.last.operation).toString().length > 1) {
+            config.last.value = config.last.value?.replaceRange(config.last.value!.length -1, config.last.value!.length, ""); 
+          } else {
+            config.removeLast();
+          }
+          break;
+        }
+        case ".": config.last.isDecimal = true; config.last.value = "${config.last.value!}.0"; break;
         case "=": setState(getResult); return;
         default:
           debugPrint("adding opperand: \"$buttonText\"");
           final addition = Model(operation: buttonText);
           config.add(addition);
-
       }
     } else {
       if (config.isNotEmpty && config.last.value != null) {
         if(!config.last.isDecimal){
-          final currentValue = config.last.value! * 10 + (double.tryParse(buttonText) ?? 0.0);
+          final currentValue = config.last.value! + buttonText;
           config.last.value = currentValue;
         } else {
-          final currentValue = config.last.value.toString();
-          final finalValue = currentValue.endsWith(".0") ? currentValue.replaceAll(".0", ".") + buttonText: currentValue + buttonText;
-          config.last.value = double.parse(finalValue);
+          final String currentValue = config.last.value.toString();
+          final String finalValue = currentValue.endsWith(".0") && buttonText != "0" ? currentValue.replaceAll(".0", ".") + buttonText: currentValue + buttonText;
+          config.last.value = finalValue;
         }
       } else {
-        final addition = Model(value: double.tryParse(buttonText));
+        final addition = Model(value: buttonText);
         config.add(addition);
       }
     }
+
     setState(() {
       previewResult = getResult(shouldreset: false);
     });
@@ -406,17 +424,17 @@ class _MyHomePageState extends State<MainPage> {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.fromLTRB(12, 5, 12, 10),
+                    padding: const EdgeInsets.fromLTRB(12, 5, 12, 8),
                     alignment: Alignment.bottomLeft,
                     child: Text((previewResult ?? errorMessage).toString().replaceAll(RegExp(r"(\.0*|(?<=\.\d*)0+)$"), ""), style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.8))),
                   ),
                   extraButtonsStrip(),
                   Container(
-                    height: 308,
+                    height: 300,
                     padding: const EdgeInsets.only(left: 8, right: 8, top: 4),
                     alignment: Alignment.bottomCenter,
                     child: GridView.count(
-                      childAspectRatio: 1.45,
+                      childAspectRatio: 1.5,
                       crossAxisCount: 4,
                       children: [
                         normalButton("E", operator: true, color: leftOperand),
@@ -530,7 +548,7 @@ class _MyHomePageState extends State<MainPage> {
       child: GestureDetector(
         onTap: () {
           if(buttonText != "deg" && buttonText != "rad"){
-            final addition = Model(operation: buttonText != "|x|" ? buttonText: "|");
+            final addition = Model(operation: buttonText != "|x|" ? buttonText : "|");
             config.add(addition);
             if (buttonText != "e" && buttonText != "π" && buttonText != "(" && buttonText != ")" && buttonText != "|x|" && buttonText != "!" && buttonText != "«" && buttonText != "»") {
               config.add(Model(operation: "("));
@@ -544,8 +562,27 @@ class _MyHomePageState extends State<MainPage> {
         },
         child: Padding(
           padding: const EdgeInsets.all(2),
-          child: Center(
-            child: Text(buttonText, style: TextStyle(fontSize: 24, color: Colors.white.withOpacity(0.8))),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                if(buttonText != "deg" && buttonText != "rad"){
+                  final addition = Model(operation: buttonText != "|x|" ? buttonText : "|");
+                  config.add(addition);
+                  if (buttonText != "e" && buttonText != "π" && buttonText != "(" && buttonText != ")" && buttonText != "|x|" && buttonText != "!" && buttonText != "«" && buttonText != "»") {
+                    config.add(Model(operation: "("));
+                  }
+                } else {
+                  degrees = !degrees;
+                }
+                setState(() {
+                  previewResult = getResult(shouldreset: false);
+                });
+              },
+              child: Center(
+                child: Text(buttonText, style: TextStyle(fontSize: 22, color: Colors.white.withOpacity(0.8))),
+              ),
+            ),
           ),
         ),
       ),
@@ -596,7 +633,7 @@ class _MyHomePageState extends State<MainPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(item.models.map((e) => displayString(e)).join(""), style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.75))),
-            Text(item.result.toStringAsFixed(8).replaceAll(RegExp(r"(\.0*|(?<=\.\d*)0+)$"), ""), style: TextStyle(fontSize: 19, color: Colors.white.withOpacity(0.75))),
+            Text(double.parse(item.result).toStringAsFixed(8).replaceAll(RegExp(r"(\.0*|(?<=\.\d*)0+)$"), ""), style: TextStyle(fontSize: 19, color: Colors.white.withOpacity(0.75))),
           ],
         )
       ),

@@ -8,7 +8,7 @@ class HistoryItem {
   const HistoryItem({required this.models, required this.result});
   
   final List<Model> models;
-  final double result;
+  final String result;
 
   Map<String, dynamic> toJson(){
     return {
@@ -20,7 +20,7 @@ class HistoryItem {
   factory HistoryItem.fromJson(Map<String, dynamic> json){
     return HistoryItem(
       models: (json["models"] as List).map<Model>((json) => Model.fromJson(json)).toList(), 
-      result: double.parse(json["result"]),
+      result: json["result"],
     );
   }
 }

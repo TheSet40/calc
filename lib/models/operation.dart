@@ -3,7 +3,7 @@
 class Model {
   Model({this.value, this.operation, this.isDecimal = false});
 
-  double? value;
+  String? value;
   String? operation;
   bool isDecimal;
 
@@ -17,7 +17,7 @@ class Model {
 
   factory Model.fromJson(Map<String, dynamic> json){
     return Model(
-      value: double.tryParse(json["value"] ?? ""),
+      value: json["value"],
       operation: json["operation"],
       isDecimal: json["decimal"] == "1",
     );

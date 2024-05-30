@@ -3,22 +3,22 @@
 import 'dart:math';
 
 import 'package:calc/components/HistoryCache.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:vibration/vibration.dart';
 
 import '../models/historyItem.dart';
 import '../models/operation.dart';
 
-
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
-
 
   @override
   State<MainPage> createState() => _MyHomePageState();
 }
 
 class _MyHomePageState extends State<MainPage> {
-
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   List<HistoryItem> history = [];
@@ -44,9 +44,9 @@ class _MyHomePageState extends State<MainPage> {
       showExtraButtons = !showExtraButtons;
     });
   }
-  
+
   String displayString(Model model) {
-    if(model.value != null){
+    if (model.value != "null" && model.value != null) {
       return model.isDecimal ? model.value.toString(): model.value.toString().replaceAll(".0", "");
     } else {
       return model.operation ?? "";
@@ -57,7 +57,7 @@ class _MyHomePageState extends State<MainPage> {
     return double.parse(value.toStringAsFixed(12));
   }
 
-  double? getResult ({ bool shouldreset = true }) {
+  double? getResult({bool shouldreset = true}) {
     if (config.isEmpty) {
       errorMessage = "";
       return null;
@@ -89,7 +89,7 @@ class _MyHomePageState extends State<MainPage> {
     return null;
   }
 
-  double calculateResult(List<Model> models) {
+  double calculateResult(List<Model> models, {double xvalue = 0}) {
     List<dynamic> tokens = [];
 
     // Convert models to tokens
@@ -101,12 +101,20 @@ class _MyHomePageState extends State<MainPage> {
         if (i + 1 < models.length) {
           Model next = models[i + 1];
           // add implicit multiplication if next token is a number or function
-          if (["π", "e", "E", "(", "√", "ln", "log", "log2", "sin", "cos", "tan", "sin⁻¹", "cos⁻¹", "tan⁻¹"].contains(next.operation)) {
+          if (["X","π", "e", "E", "(", "√", "ln", "log", "log2", "sin", "cos", "tan", "sin⁻¹", "cos⁻¹", "tan⁻¹"].contains(next.operation)) {
             tokens.add('×');
           }
         }
       } else if (m.operation != null) {
-        if (m.operation == "π") {
+        if (m.operation == "X") {
+          tokens.add(xvalue);
+          if (i + 1 < models.length) {
+            Model next = models[i + 1];
+            if (next.value != null || next.operation == "π" || next.operation == "e" || next.operation == "E") {
+              tokens.add('×');
+            }
+          }
+        } else if (m.operation == "π") {
           tokens.add(pi);
           if (i + 1 < models.length) {
             Model next = models[i + 1];
@@ -148,7 +156,7 @@ class _MyHomePageState extends State<MainPage> {
           return left - right;
         case '×':
           return left * right;
-        case '/':
+        case '÷':
           if (right == 0.0) throw Exception('Division by zero');
           return left / right;
         case '^':
@@ -170,7 +178,7 @@ class _MyHomePageState extends State<MainPage> {
       for (int i = 2; i <= iterations; i++) {
         result *= i;
       }
-      
+
       return result;
     }
 
@@ -221,7 +229,7 @@ class _MyHomePageState extends State<MainPage> {
 
     // Evaluate expression
     double evaluateExpression(List<dynamic> tokens) {
-      debugPrint("tokens $tokens");
+      // debugPrint("tokens $tokens");
 
       // Handle parentheses
       int openIndex;
@@ -245,7 +253,7 @@ class _MyHomePageState extends State<MainPage> {
           int index = tokens.indexOf(op);
           double operand = tokens[index - 1];
           double result = applyUnaryOperation(op, operand);
-          tokens.replaceRange(index -1, index + 1, [result]);
+          tokens.replaceRange(index - 1, index + 1, [result]);
         }
       }
 
@@ -261,7 +269,7 @@ class _MyHomePageState extends State<MainPage> {
       }
 
       // Handle starting unary operations
-      for (String op in ['sin', 'sin⁻¹', 'cos', 'cos⁻¹', 'tan', 'tan⁻¹', 'log', 'log2', 'ln', '√']) {
+      for (String op in ['sin','sin⁻¹','cos','cos⁻¹','tan','tan⁻¹','log','log2','ln','√']) {
         while (tokens.contains(op)) {
           int index = tokens.indexOf(op);
           double operand = tokens[index + 1];
@@ -272,7 +280,7 @@ class _MyHomePageState extends State<MainPage> {
 
       // Handle multiplication and division
       int multIndex;
-      while ((multIndex = tokens.indexWhere((t) => t == '×' || t == '/')) != -1) {
+      while ((multIndex = tokens.indexWhere((t) => t == '×' || t == '÷')) != -1) {
         double left = tokens[multIndex - 1];
         double right = tokens[multIndex + 1];
         double result = applyOperation(tokens[multIndex], left, right);
@@ -301,21 +309,52 @@ class _MyHomePageState extends State<MainPage> {
     return roundFloatError(evaluateExpression(tokens));
   }
 
+  List<FlSpot> generateDataPoints() {
+    List<FlSpot> points = [];
+    final start = DateTime.now();
+    try {
+      for (double x = -10; x <= 10; x += 0.075) {
+        double y = calculateResult(config, xvalue: x);
+        if (!y.isNaN) {
+          points.add(FlSpot(x, y));
+        }
+      }
+    } catch (e) {
+      debugPrint("error $e");
+    }
 
-  void handleButtonPress(String buttonText, bool operator, Color color){
+    final int mcdiff = start.difference(DateTime.now()).inMicroseconds * -1;
+
+    debugPrint("results ${points.length} points ${mcdiff / 1E3}ms");
+    return points;
+  }
+
+  void handleButtonPress(String buttonText, bool operator, Color color) {
     if (operator) {
       switch (buttonText) {
-        case "C": config.clear(); break;
-        case "DEL": if (config.isNotEmpty) { 
-          if ((config.last.value ?? config.last.operation).toString().length > 1) {
-            config.last.value = config.last.value?.replaceRange(config.last.value!.length -1, config.last.value!.length, ""); 
-          } else {
-            config.removeLast();
-          }
+        case "C": 
+          config.clear();
+          Vibration.vibrate(
+            duration: 400,
+            pattern: [0, 150], // Pattern: [wait, vibrate, ...]
+          );
           break;
-        }
-        case ".": config.last.isDecimal = true; config.last.value = "${config.last.value!}.0"; break;
-        case "=": setState(getResult); return;
+        case "DEL":
+          if (config.isNotEmpty) {
+            if ((config.last.value ?? config.last.operation)!.length > 1) {
+              config.last.value = config.last.value?.replaceRange(config.last.value!.length - 1, config.last.value!.length, "");
+            } else {
+              config.removeLast();
+            }
+            break;
+          }
+        case ".":
+          config.last.isDecimal = true;
+          config.last.value = "${config.last.value!}.0";
+          break;
+        case "=":
+          setState(getResult);
+          return;
         default:
           debugPrint("adding opperand: \"$buttonText\"");
           final addition = Model(operation: buttonText);
@@ -323,12 +362,12 @@ class _MyHomePageState extends State<MainPage> {
       }
     } else {
       if (config.isNotEmpty && config.last.value != null) {
-        if(!config.last.isDecimal){
+        if (!config.last.isDecimal) {
           final currentValue = config.last.value! + buttonText;
           config.last.value = currentValue;
         } else {
-          final String currentValue = config.last.value.toString();
-          final String finalValue = currentValue.endsWith(".0") && buttonText != "0" ? currentValue.replaceAll(".0", ".") + buttonText: currentValue + buttonText;
+          final String currentValue = config.last.value!;
+          final String finalValue = (currentValue.endsWith(".0") && buttonText != "0" ? currentValue.replaceAll(".0", "."): currentValue) + buttonText;
           config.last.value = finalValue;
         }
       } else {
@@ -343,7 +382,7 @@ class _MyHomePageState extends State<MainPage> {
   }
 
   @override
-  void initState(){
+  void initState() {
     super.initState();
     gethistory();
   }
@@ -355,6 +394,9 @@ class _MyHomePageState extends State<MainPage> {
 
   @override
   Widget build(BuildContext context) {
+
+    final List<FlSpot> datapoints = config.any((element) => element.operation == "X") ? generateDataPoints(): [];
+
     return Scaffold(
       key: _scaffoldKey,
       drawer: drawer(context),
@@ -364,83 +406,168 @@ class _MyHomePageState extends State<MainPage> {
             gradient: RadialGradient(
               radius: 1.25,
               center: Alignment.topLeft,
-              colors: [const Color(0xFF232937).withOpacity(0.95), const Color(0xFF232937)])
+              colors: [
+                const Color(0xFF232937).withOpacity(0.95),
+                const Color(0xFF232937)
+              ]
+            )
           ),
-          child: Stack(
-            children: [
-              Positioned(
-                top: 15,
-                left: 10,
-                child: GestureDetector(
-                  onTap: () {
-                    _scaffoldKey.currentState?.openDrawer();
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF5a6372),
-                      borderRadius: BorderRadius.only(topLeft: Radius.circular(25), topRight: Radius.circular(25), bottomRight: Radius.circular(25))
-                    ),
-                    child: Icon(
-                      Icons.history,
-                      color: Colors.white.withOpacity(0.85),
-                    ),
+          child: Stack(children: [
+            Positioned(
+              top: 15,
+              left: 10,
+              child: GestureDetector(
+                onTap: () {
+                  _scaffoldKey.currentState?.openDrawer();
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF5a6372),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(25),
+                      topRight: Radius.circular(25),
+                      bottomRight: Radius.circular(25)
+                    )
+                  ),
+                  child: Icon(
+                    Icons.history,
+                    color: Colors.white.withOpacity(0.85),
                   ),
                 ),
               ),
-              // Positioned(
-              //   top: 15,
-              //   right: 10,
-              //   child: GestureDetector(
-              //     onTap: () {
-              //       setState(() {
-              //         eyeComfort = !eyeComfort;
-              //       });
-              //     },
-              //     child: Container(
-              //       padding: const EdgeInsets.all(6),
-              //       decoration: const BoxDecoration(
-              //         color: Color(0xFF5a6372),
-              //         borderRadius: BorderRadius.all(Radius.circular(25))
-              //       ),
-              //       child: Icon(
-              //         Icons.remove_red_eye_outlined,
-              //         color: Colors.white.withOpacity(0.85),
-              //       ),
-              //     ),
-              //   ),
-              // ),
+            ),
+            // Positioned(
+            //   top: 15,
+            //   right: 10,
+            //   child: GestureDetector(
+            //     onTap: () {
+            //       setState(() {
+            //         eyeComfort = !eyeComfort;
+            //       });
+            //     },
+            //     child: Container(
+            //       padding: const EdgeInsets.all(6),
+            //       decoration: const BoxDecoration(
+            //         color: Color(0xFF5a6372),
+            //         borderRadius: BorderRadius.all(Radius.circular(25))
+            //       ),
+            //       child: Icon(
+            //         Icons.remove_red_eye_outlined,
+            //         color: Colors.white.withOpacity(0.85),
+            //       ),
+            //     ),
+            //   ),
+            // ),
               Column(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      alignment: Alignment.bottomLeft,
-                      child: Text(
-                        config.map((e) => displayString(e)).join(),
-                        style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.8)),
-                      ),
+                    child: datapoints.isNotEmpty ? Padding(
+                        padding: const EdgeInsets.fromLTRB(8.0, 15.0, 12.0, 0.0),
+                        child: LineChart(
+                          LineChartData(
+                            gridData: const FlGridData(show: true),
+                            titlesData: FlTitlesData(
+                              show: true,
+                              leftTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  reservedSize: 26,
+                                  showTitles: true,
+                                  interval: 2,
+                                  getTitlesWidget: (value, meta) {
+                                    return Text(
+                                      value.toStringAsFixed(0),
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                      ),
+                                    );
+                                  },
+                                ),
+                                axisNameSize: 14,
+                              ),
+                              rightTitles: const AxisTitles(
+                                sideTitles: SideTitles(
+                                  reservedSize: 0,
+                                  showTitles: false,
+                                ),
+                                axisNameSize: 14,
+                              ),
+                              topTitles: const AxisTitles(
+                                sideTitles: SideTitles(
+                                  reservedSize: 0,
+                                  showTitles: false,
+                                ),
+                                axisNameSize: 14,
+                              ),
+                              bottomTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  reservedSize: 26,
+                                  showTitles: true,
+                                  interval: 2,
+                                  getTitlesWidget: (value, meta) {
+                                    return Text(
+                                      value.toStringAsFixed(0),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                      ),
+                                    );
+                                  },
+                                ),
+                                axisNameSize: 14,
+                              ),
+                            ),
+                            borderData: FlBorderData(show: true, border: Border.all(color: Colors.white60)),
+                            clipData: const FlClipData.all(),
+                            minX: datapoints.reduce((a, b) => (a.y.abs() <= 10 && a.x < b.x) ? a : b).x,
+                            maxX: 10,
+                            minY: clampDouble(datapoints.reduce((a, b) => a.y < b.y && a.y >= -10 ? a : b).y - 2, -10, 10),
+                            maxY: 10,
+                            lineBarsData: [
+                              LineChartBarData(
+                                spots: datapoints,
+                                isCurved: true,
+                                color: Colors.blue,
+                                barWidth: 2,
+                                isStrokeCapRound: true,
+                                dotData: const FlDotData(show: false),
+                                belowBarData: BarAreaData(show: false),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : const SizedBox(),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    alignment: Alignment.bottomLeft,
+                    child: Text(
+                      config.map((e) => displayString(e)).join(),
+                      style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.8)),
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.fromLTRB(12, 5, 12, 8),
+                    padding: const EdgeInsets.fromLTRB(12, 2, 12, 8),
                     alignment: Alignment.bottomLeft,
-                    child: Text((previewResult ?? errorMessage).toString().replaceAll(RegExp(r"(\.0*|(?<=\.\d*)0+)$"), ""), style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.8))),
+                    child: datapoints.isEmpty ? Text((previewResult ?? errorMessage).toString().replaceAll(RegExp(r"(\.0*|(?<=\.\d*)0+)$"), ""), style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.8))): const SizedBox(),
                   ),
                   extraButtonsStrip(),
                   Container(
-                    height: 300,
-                    padding: const EdgeInsets.only(left: 8, right: 8, top: 4),
+                    height: 286,
+                    padding: const EdgeInsets.only(left: 8, right: 8, top: 3),
                     alignment: Alignment.bottomCenter,
                     child: GridView.count(
-                      childAspectRatio: 1.5,
+                      childAspectRatio: 1.55,
                       crossAxisCount: 4,
                       children: [
                         normalButton("E", operator: true, color: leftOperand),
                         normalButton("%", operator: true, color: leftOperand),
-                        normalButton("DEL", operator: true, color: leftOperand),
-                        normalButton("/", operator: true, color: rightOperand),
+                        normalButton("DEL", overload: "C", operator: true, color: leftOperand),
+                        normalButton("÷", operator: true, color: rightOperand),
                         normalButton("7"),
                         normalButton("8"),
                         normalButton("9"),
@@ -455,7 +582,7 @@ class _MyHomePageState extends State<MainPage> {
                         normalButton("+", operator: true, color: rightOperand),
                         normalButton(".", operator: true, color: leftOperand),
                         normalButton("0"),
-                        normalButton("C", operator: true, color: leftOperand),
+                        normalButton("X", operator: true, color: leftOperand),
                         normalButton("=", operator: true, color: rightOperand),
                       ],
                     ),
@@ -469,9 +596,10 @@ class _MyHomePageState extends State<MainPage> {
     );
   }
 
-  Widget normalButton(String buttonText, {bool operator = false, Color color = number}) {
+  Widget normalButton(String buttonText, {bool operator = false, Color color = number, String? overload}) {
     return GestureDetector(
       onTap: () => handleButtonPress(buttonText, operator, color),
+      onLongPress: () => handleButtonPress(overload ?? buttonText, operator, color),
       child: Padding(
         padding: const EdgeInsets.all(4),
         child: Container(
@@ -512,7 +640,10 @@ class _MyHomePageState extends State<MainPage> {
                 extraFunctionButton("tan${inverse ? "⁻¹": ""}"),
                 extraFunctionButton("π"),
                 extraFunctionButton("e"),
-                modeToggle(degrees ? "deg": "rad", () => degrees = !degrees),
+                modeToggle(degrees ? "deg": "rad", () { 
+                  degrees = !degrees;
+                  previewResult = getResult(shouldreset: false);
+                }),
               ],
             ),
             Row(
@@ -547,14 +678,10 @@ class _MyHomePageState extends State<MainPage> {
     return Expanded(
       child: GestureDetector(
         onTap: () {
-          if(buttonText != "deg" && buttonText != "rad"){
-            final addition = Model(operation: buttonText != "|x|" ? buttonText : "|");
-            config.add(addition);
-            if (buttonText != "e" && buttonText != "π" && buttonText != "(" && buttonText != ")" && buttonText != "|x|" && buttonText != "!" && buttonText != "«" && buttonText != "»") {
-              config.add(Model(operation: "("));
-            }
-          } else {
-            degrees = !degrees;
+          final Model addition = Model(operation: buttonText != "|x|" ? buttonText : "|");
+          config.add(addition);
+          if (!["e", "π", "(", ")", "|x|", "!", "«", "»"].contains(buttonText)) {
+            config.add(Model(operation: "("));
           }
           setState(() {
             previewResult = getResult(shouldreset: false);

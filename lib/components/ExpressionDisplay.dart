@@ -1,8 +1,10 @@
+// ignore_for_file: file_names
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../models/operation.dart';
+import '../models/mathModel.dart';
 
 class EditableTextWithCursor extends StatefulWidget {
   final List<Model> config;

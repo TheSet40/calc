@@ -1,15 +1,14 @@
 // ignore_for_file: file_names
 
-import 'package:fl_chart/fl_chart.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:vibration/vibration.dart';
 
 import '../components/ExpressionDisplay.dart';
 import '../components/ExpressionParser.dart';
 import '../components/HistoryCache.dart';
+import '../components/graphViewer.dart';
 import '../models/historyItem.dart';
-import '../models/operation.dart';
+import '../models/mathModel.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -81,26 +80,6 @@ class _MyHomePageState extends State<MainPage> {
     }
 
     return null;
-  }
-
-  List<FlSpot> generateDataPoints() {
-    List<FlSpot> points = [];
-    final start = DateTime.now();
-    try {
-      for (double x = -10; x <= 10; x += 0.075) {
-        double y = calculateResult(config, degrees: isDegrees, xvalue: x);
-        if (!y.isNaN) {
-          points.add(FlSpot(x, y));
-        }
-      }
-    } catch (e) {
-      debugPrint("error $e");
-    }
-
-    final int mcdiff = start.difference(DateTime.now()).inMicroseconds * -1;
-
-    debugPrint("results ${points.length} points ${mcdiff / 1E3}ms");
-    return points;
   }
 
   void handleButtonPress(String buttonText, bool operator, Color color) {
@@ -183,7 +162,7 @@ class _MyHomePageState extends State<MainPage> {
   Widget build(BuildContext context) {
 
     print("selector index $cursorIndex config length ${config.length}  ${config.map((element) => element.value ?? element.operation)}");
-    final List<FlSpot> datapoints = config.any((element) => element.operation == "X") ? generateDataPoints(): [];
+    final bool includesX = config.any((element) => element.operation == "X");
 
     return Scaffold(
       key: _scaffoldKey,
@@ -250,84 +229,10 @@ class _MyHomePageState extends State<MainPage> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   Expanded(
-                    child: datapoints.isNotEmpty ? Padding(
-                        padding: const EdgeInsets.fromLTRB(8.0, 15.0, 12.0, 0.0),
-                        child: LineChart(
-                          LineChartData(
-                            gridData: const FlGridData(show: true),
-                            titlesData: FlTitlesData(
-                              show: true,
-                              leftTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  reservedSize: 26,
-                                  showTitles: true,
-                                  interval: 2,
-                                  getTitlesWidget: (value, meta) {
-                                    return Text(
-                                      value.toStringAsFixed(0),
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                      ),
-                                    );
-                                  },
-                                ),
-                                axisNameSize: 14,
-                              ),
-                              rightTitles: const AxisTitles(
-                                sideTitles: SideTitles(
-                                  reservedSize: 0,
-                                  showTitles: false,
-                                ),
-                                axisNameSize: 14,
-                              ),
-                              topTitles: const AxisTitles(
-                                sideTitles: SideTitles(
-                                  reservedSize: 0,
-                                  showTitles: false,
-                                ),
-                                axisNameSize: 14,
-                              ),
-                              bottomTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  reservedSize: 26,
-                                  showTitles: true,
-                                  interval: 2,
-                                  getTitlesWidget: (value, meta) {
-                                    return Text(
-                                      value.toStringAsFixed(0),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                      ),
-                                    );
-                                  },
-                                ),
-                                axisNameSize: 14,
-                              ),
-                            ),
-                            borderData: FlBorderData(show: true, border: Border.all(color: Colors.white60)),
-                            clipData: const FlClipData.all(),
-                            minX: clampDouble(datapoints.reduce((a, b) => (a.y.abs() <= 10 && a.x < b.x) ? a : b).x - 2, -10, 10),
-                            maxX: 10,
-                            minY: clampDouble(datapoints.reduce((a, b) => a.y < b.y && a.y >= -10 ? a : b).y - 2, -10, 10),
-                            maxY: 10,
-                            lineBarsData: [
-                              LineChartBarData(
-                                spots: datapoints,
-                                isCurved: true,
-                                color: Colors.blue,
-                                barWidth: 2,
-                                isStrokeCapRound: true,
-                                dotData: const FlDotData(show: false),
-                                belowBarData: BarAreaData(show: false),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                    : const SizedBox(),
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 10.0, right: 10.0),
+                      child: includesX ? ZoomableLineChart(config: config, degrees: isDegrees): const SizedBox(),
+                    ),
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -337,7 +242,7 @@ class _MyHomePageState extends State<MainPage> {
                   Container(
                     padding: const EdgeInsets.fromLTRB(12, 2, 12, 8),
                     alignment: Alignment.bottomLeft,
-                    child: datapoints.isEmpty ? Text((previewResult ?? errorMessage).toString().replaceAll(RegExp(r"(\.0*|(?<=\.\d*)0+)$"), ""), style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.8))): const SizedBox(),
+                    child: !includesX ? Text((previewResult ?? errorMessage).toString().replaceAll(RegExp(r"(\.0*|(?<=\.\d*)0+)$"), ""), style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.8))): const SizedBox(),
                   ),
                   extraButtonsStrip(),
                   Container(

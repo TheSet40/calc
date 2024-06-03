@@ -2,7 +2,7 @@
 
   import 'dart:math';
 
-import '../models/operation.dart';
+import '../models/mathModel.dart';
 
 double roundFloatError(double value) {
   return double.parse(value.toStringAsFixed(12));

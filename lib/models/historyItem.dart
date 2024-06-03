@@ -1,6 +1,6 @@
 // ignore_for_file: file_names
 
-import 'operation.dart';
+import 'mathModel.dart';
 
 class HistoryItem {
   const HistoryItem({required this.models, required this.result});

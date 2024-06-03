@@ -7,7 +7,7 @@ class Model {
   String? operation;
   bool isDecimal;
 
-  Map<String, String> toMap(){
+  Map<String, String> toJson() {
     return {
       "value": value.toString(),
       "operation": operation.toString(),
@@ -15,7 +15,7 @@ class Model {
     };
   }
 
-  factory Model.fromJson(Map<String, dynamic> json){
+  factory Model.fromJson(Map<String, dynamic> json) {
     return Model(
       value: json["value"],
       operation: json["operation"],

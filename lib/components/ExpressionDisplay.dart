@@ -38,7 +38,7 @@ class _EditableTextWithCursorState extends State<EditableTextWithCursor> {
       textAlign: TextAlign.left,
     );
 
-    _timer = Timer.periodic(const Duration(milliseconds: 750), (timer) {
+    _timer = Timer.periodic(const Duration(milliseconds: 1000), (timer) {
       setState(() {
         _transparent = !_transparent;
       });
@@ -92,11 +92,27 @@ class _EditableTextWithCursorState extends State<EditableTextWithCursor> {
         double dx = localPosition.dx;
 
         int newCursorPosition = _textPainter.getPositionForOffset(Offset(dx, 0)).offset;
-        if (newCursorPosition != _cursorIndex) {
+
+        int newIndex = 0;
+        int translation = newCursorPosition;
+
+        while (newIndex < widget.config.length && translation > 0) {
+          final itemLength = (widget.config[newIndex].value ?? widget.config[newIndex].operation)!.length;
+          translation -= itemLength;
+          if (translation > 0) {
+            newIndex++;
+          }
+        }
+
+        if (newIndex >= widget.config.length) {
+          newIndex = widget.config.length - 1;
+        }
+
+        if (newIndex != _cursorIndex) {
           setState(() {
-            _cursorIndex = newCursorPosition;
+            _cursorIndex = newIndex;
           });
-          widget.onUpdateCursorPosition(_cursorIndex);
+          widget.onUpdateCursorPosition(newIndex);
         }
       },
       onTapDown: (details) {
@@ -104,13 +120,28 @@ class _EditableTextWithCursorState extends State<EditableTextWithCursor> {
         Offset localPosition = renderBox.globalToLocal(details.globalPosition);
         double dx = localPosition.dx;
 
-        int newCursorPosition =
-            _textPainter.getPositionForOffset(Offset(dx, 0)).offset;
-        if (newCursorPosition != _cursorIndex) {
+        int newCursorPosition = _textPainter.getPositionForOffset(Offset(dx, 0)).offset;
+
+        int newIndex = 0;
+        int translation = newCursorPosition;
+
+        while (newIndex < widget.config.length && translation > 0) {
+          final itemLength = (widget.config[newIndex].value ?? widget.config[newIndex].operation)!.length;
+          translation -= itemLength;
+          if (translation > 0) {
+            newIndex++;
+          }
+        }
+
+        if (newIndex >= widget.config.length) {
+          newIndex = widget.config.length - 1;
+        }
+
+        if (newIndex != _cursorIndex) {
           setState(() {
-            _cursorIndex = newCursorPosition;
+            _cursorIndex = newIndex;
           });
-          widget.onUpdateCursorPosition(_cursorIndex);
+          widget.onUpdateCursorPosition(newIndex);
         }
       },
       child: CustomPaint(

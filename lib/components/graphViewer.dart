@@ -32,9 +32,9 @@ class _ZoomableLineChartState extends State<ZoomableLineChart> {
 
   List<FlSpot> generateDataPoints() {
     List<FlSpot> points = [];
-    final start = DateTime.now();
-                                    
-    final double accuracy = (maxX - minX) / 300 /* number of points */;
+    // final start = DateTime.now();
+
+    final double accuracy = (maxX - minX) / 400 /* number of points */;
     // print("accuracy $accuracy");
 
     try {
@@ -48,9 +48,9 @@ class _ZoomableLineChartState extends State<ZoomableLineChart> {
       debugPrint("error $e");
     }
 
-    final int mcdiff = start.difference(DateTime.now()).inMicroseconds * -1;
+    // final int mcdiff = start.difference(DateTime.now()).inMicroseconds * -1;
 
-    debugPrint("results ${points.length} points ${mcdiff / 1E3}ms");
+    //debugPrint("results ${points.length} points ${mcdiff / 1E3}ms");
     return points;
   }
 
@@ -77,7 +77,6 @@ class _ZoomableLineChartState extends State<ZoomableLineChart> {
           double newMinY = (minY + maxY) / 2 - (maxY - minY) / 2 / scaleChange;
           double newMaxY = (minY + maxY) / 2 + (maxY - minY) / 2 / scaleChange;
 
-          // Clamp zoom to reasonable limits
           if (newMaxX - newMinX > 0.5 && newMaxY - newMinY > 0.5) {
             minX = newMinX;
             maxX = newMaxX;
@@ -87,9 +86,9 @@ class _ZoomableLineChartState extends State<ZoomableLineChart> {
 
           previousScaleFactor = details.scale;
 
-          // Handle pan
+          // paning
           double dx = (details.focalPoint.dx - previousOffset.dx) / context.size!.width * (maxX - minX);
-          double dy = (previousOffset.dy - details.focalPoint.dy) / context.size!.height * (maxY - minY); // Inverted y-axis movement
+          double dy = (previousOffset.dy - details.focalPoint.dy) / context.size!.height * (maxY - minY);
 
           minX -= dx;
           maxX -= dx;

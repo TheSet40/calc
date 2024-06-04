@@ -123,7 +123,7 @@ class _MyHomePageState extends State<MainPage> {
         default:
           final addition = Model(operation: buttonText);
           config.insert(cursorIndex, addition);
-          cursorIndex += buttonText.length;
+          cursorIndex++;
       }
     } else {
       if (config.isNotEmpty && config[cursorIndex -1].value != null) {
@@ -161,7 +161,7 @@ class _MyHomePageState extends State<MainPage> {
   @override
   Widget build(BuildContext context) {
 
-    print("selector index $cursorIndex config length ${config.length}  ${config.map((element) => element.value ?? element.operation)}");
+    print("selector index $cursorIndex config ${config.length} items: ${config.map((e) => displayString(e)).join()}");
     final bool includesX = config.any((element) => element.operation == "X");
 
     return Scaffold(
@@ -377,7 +377,7 @@ class _MyHomePageState extends State<MainPage> {
                 config.insert(cursorIndex + 1, Model(operation: "("));
                 cursorIndex++;
               }
-              cursorIndex += buttonText.length;
+              cursorIndex++; 
               setState(() {
                 previewResult = getResult(shouldreset: false);
               });
@@ -424,7 +424,7 @@ class _MyHomePageState extends State<MainPage> {
         _scaffoldKey.currentState?.closeDrawer();
         final historyReslut = Model(value: item.result, isDecimal: true);
         config.add(historyReslut);
-        cursorIndex += item.result.length;
+        cursorIndex++;
         setState(() {
           previewResult = getResult(shouldreset: false);
         });

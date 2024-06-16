@@ -128,7 +128,7 @@ class _EditableTextWithCursorState extends State<EditableTextWithCursor> {
         while (newIndex < widget.config.length && translation > 0) {
           final itemLength = (widget.config[newIndex].value ?? widget.config[newIndex].operation)!.length;
           translation -= itemLength;
-          if (translation > 0) {
+          if (translation > -5) {
             newIndex++;
           }
         }
@@ -199,9 +199,7 @@ class _TextPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return true;
-  }
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
 String displayString(Model model) {

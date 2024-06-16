@@ -1,6 +1,6 @@
 // ignore_for_file: file_names
 
-  import 'dart:math';
+import 'dart:math';
 
 import '../models/mathModel.dart';
 
@@ -139,8 +139,10 @@ double evaluateExpression(List<dynamic> tokens, bool degrees) {
   }
 
   for (int j = 0; j < tokens.length; j++) {
-    if (j != tokens.length - 1 && (j - 1 < 0 || tokens[j -1] == "-") && tokens[j] == "-" &&  tokens[j + 1].runtimeType == double) {
+    if (j != tokens.length - 1 && (j - 1 < 0 || tokens[j -1] == "-") && tokens[j] == "-" && tokens[j + 1].runtimeType == double) {
       tokens.replaceRange(j, j + 2, [double.parse(tokens[j].toString() + tokens[j + 1].toString())]);
+    } else if (j != tokens.length - 1 && (j - 1 < 0 || tokens[j -1].runtimeType != double) && tokens[j] == "+") {
+      tokens.removeAt(j);
     }
   }
 

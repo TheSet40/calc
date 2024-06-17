@@ -87,6 +87,7 @@ double applyUnaryOperation(String op, double operand, bool degrees) {
 
 // Evaluate expression
 double evaluateExpression(List<dynamic> tokens, bool degrees) {
+  // print("tokens $tokens");
 
   int openIndex;
   while ((openIndex = tokens.lastIndexOf('(')) != -1) {
@@ -138,14 +139,6 @@ double evaluateExpression(List<dynamic> tokens, bool degrees) {
     tokens.replaceRange(multIndex - 1, multIndex + 2, [result]);
   }
 
-  for (int j = 0; j < tokens.length; j++) {
-    if (j != tokens.length - 1 && (j - 1 < 0 || tokens[j -1] == "-") && tokens[j] == "-" && tokens[j + 1].runtimeType == double) {
-      tokens.replaceRange(j, j + 2, [double.parse(tokens[j].toString() + tokens[j + 1].toString())]);
-    } else if (j != tokens.length - 1 && (j - 1 < 0 || tokens[j -1].runtimeType != double) && tokens[j] == "+") {
-      tokens.removeAt(j);
-    }
-  }
-
   while (tokens.length > 1) {
     double left = tokens[0];
     double right = tokens[2];
@@ -180,6 +173,18 @@ double calculateResult(List<Model> models, {bool degrees = true, double xvalue =
           if (next.value != null || next.operation == "π" || next.operation == "e" || next.operation == "E") {
             tokens.add('×');
           }
+        }
+      } else if (m.operation == "-" || m.operation == "+") {
+        if (models[i + 1].value != null && models[i - 1].operation != "X" && (i == 0 || models[i - 1].operation != null)) {
+          tokens.add(double.parse(models[i + 1].value!) * (m.operation == "-" ? -1: 1));
+          i++;
+        } else if (models[i + 1].operation == "X") {
+          if (m.operation == "-") {
+            tokens.add(-1.0);
+            tokens.add('×');
+          }
+        } else {
+          tokens.add(m.operation);
         }
       } else if (m.operation == "π") {
         tokens.add(pi);

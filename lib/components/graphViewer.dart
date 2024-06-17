@@ -1,5 +1,7 @@
 // ignore_for_file: file_names
 
+import 'dart:math';
+
 import 'package:calc/models/mathModel.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/foundation.dart';
@@ -30,38 +32,66 @@ class _ZoomableLineChartState extends State<ZoomableLineChart> {
   Offset previousOffset = Offset.zero;
 
 
-  List<FlSpot> generateDataPoints() {
-    List<FlSpot> points = [];
-    // final start = DateTime.now();
+  List<List<FlSpot>> generateDataPoints() {
+    List<List<FlSpot>> points = [[]];
 
-    final double accuracy = (maxX - minX) / 400 /* number of points */;
-    // print("accuracy $accuracy");
+    List<List<Model>> configs = [[]];
+
+    final double accuracy = (maxX - minX) / 400; // number of points
+
+    int grapfIndex = 0;
+
+    for (int i = 0; i < widget.config.length; i++) {
+      if (widget.config[i].operation == ",") {
+        points.add([]);
+        configs.add([]);
+        grapfIndex++;
+      } else {
+        configs[grapfIndex].add(widget.config[i]);
+      }
+    }
+
+    //print("config1: ${configs[0].map((item) => "\"${item.value ?? item.operation}\"")} config2: ${configs[1].map((item) => "\"${item.value ?? item.operation}\"")}");
 
     try {
-      for (double x = minX; x <= maxX; x += accuracy) {
-        double y = calculateResult(widget.config, degrees: widget.degrees, xvalue: x);
-        if (!y.isNaN) {
-          points.add(FlSpot(x, y));
-        }
+      for (int i = 0; i < configs.length; i ++) {
+        points[i] = _calculatePoints(configs[i], accuracy);
       }
     } catch (e) {
       debugPrint("error $e");
     }
 
-    // final int mcdiff = start.difference(DateTime.now()).inMicroseconds * -1;
-
-    //debugPrint("results ${points.length} points ${mcdiff / 1E3}ms");
     return points;
+  }
+
+  List<FlSpot> _calculatePoints(List<Model> config, double accuracy) {
+    List<FlSpot> subPoints = [];
+    for (double x = minX; x <= maxX; x += accuracy) {
+      double y = calculateResult(config, degrees: widget.degrees, xvalue: x);
+      if (!y.isNaN) {
+        subPoints.add(FlSpot(x, y));
+      }
+    }
+    return subPoints;
+  }
+
+  Color colorFromNumber(double number) {
+    double hue = number % 360;
+
+    double saturation = 0.95;
+    double lightness = 0.575;
+
+    return HSLColor.fromAHSL(1.0, hue, saturation, lightness).toColor();
   }
 
   @override
   Widget build(BuildContext context) {
 
-    final List<FlSpot> datapoints = generateDataPoints();
+    final List<List<FlSpot>> datapoints = generateDataPoints();
 
     intervall = clampDouble((maxX - minX) / 8, 2, 1E300);
 
-    // print("interval $intervall");
+    // print("${pow(10, 1 * 5.823 + 1).toInt()}");
 
     return GestureDetector(
       onScaleStart: (ScaleStartDetails details) {
@@ -162,17 +192,17 @@ class _ZoomableLineChartState extends State<ZoomableLineChart> {
           maxX: maxX,
           minY: minY,
           maxY: maxY,
-          lineBarsData: [
+          lineBarsData: List.generate(datapoints.length, (index) => 
             LineChartBarData(
-              spots: datapoints,
+              spots: datapoints[index],
               isCurved: true,
-              color: Colors.blue,
+              color: colorFromNumber(pow(6.823 + index, index * 2).toDouble()),
               barWidth: 2,
               isStrokeCapRound: true,
               dotData: const FlDotData(show: false),
               belowBarData: BarAreaData(show: false),
             ),
-          ],
+          ),
         ),
       ),
     );

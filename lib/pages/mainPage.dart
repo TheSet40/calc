@@ -118,7 +118,7 @@ class _MyHomePageState extends State<MainPage> {
           break;
         case "=":
           setState(getResult);
-          cursorIndex = 0;
+          cursorIndex = 1;
           return;
         default:
           final addition = Model(operation: buttonText);
@@ -137,7 +137,7 @@ class _MyHomePageState extends State<MainPage> {
     }
 
     setState(() {
-      previewResult = getResult(shouldreset: false);
+      previewResult = !config.any((element) => element.operation == "X") ? getResult(shouldreset: false): null;
     });
   }
 
@@ -179,52 +179,32 @@ class _MyHomePageState extends State<MainPage> {
               ]
             )
           ),
-          child: Stack(children: [
-            Positioned(
-              top: 15,
-              left: 10,
-              child: GestureDetector(
-                onTap: () {
-                  _scaffoldKey.currentState?.openDrawer();
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF5a6372),
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(25),
-                      topRight: Radius.circular(25),
-                      bottomRight: Radius.circular(25)
-                    )
-                  ),
-                  child: Icon(
-                    Icons.history,
-                    color: Colors.white.withOpacity(0.85),
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              top: 15,
-              right: 10,
-              child: GestureDetector(
-                onTap: () {
-                  setState(() {
-                    vibrate = !vibrate;
-                  });
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF5a6372),
-                    borderRadius: BorderRadius.all(Radius.circular(25))
-                  ),
-                  child: Icon(Icons.vibration,
-                    color: vibrate ? const Color.fromARGB(255, 48, 167, 52).withOpacity(0.95): const Color.fromARGB(255, 236, 36, 22).withOpacity(0.95),
+          child: Stack(
+            children: [
+              Positioned(
+                top: 10,
+                left: 8,
+                child: GestureDetector(
+                  onTap: () {
+                    _scaffoldKey.currentState?.openDrawer();
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF5a6372),
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(25),
+                        topRight: Radius.circular(25),
+                        bottomRight: Radius.circular(25)
+                      )
+                    ),
+                    child: Icon(
+                      Icons.history,
+                      color: Colors.white.withOpacity(0.85),
+                    ),
                   ),
                 ),
               ),
-            ),
               Column(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
@@ -269,7 +249,7 @@ class _MyHomePageState extends State<MainPage> {
                         normalButton("2"),
                         normalButton("3"),
                         normalButton("+", operator: true, color: rightOperand),
-                        normalButton(".", operator: true, color: leftOperand),
+                        normalButton(".", overload: ",", operator: true, color: leftOperand),
                         normalButton("0"),
                         normalButton("X", operator: true, color: leftOperand),
                         normalButton("=", operator: true, color: rightOperand),
@@ -277,6 +257,27 @@ class _MyHomePageState extends State<MainPage> {
                     ),
                   ),
                 ],
+              ),
+              Positioned(
+                top: 10,
+                right: 8,
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      vibrate = !vibrate;
+                    });
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF5a6372),
+                      borderRadius: BorderRadius.all(Radius.circular(25))
+                    ),
+                    child: Icon(Icons.vibration,
+                      color: vibrate ? const Color.fromARGB(255, 48, 167, 52).withOpacity(0.95): const Color.fromARGB(255, 236, 36, 22).withOpacity(0.95),
+                    ),
+                  ),
+                ),
               ),
             ]
           ),

@@ -97,9 +97,10 @@ class _EditableTextWithCursorState extends State<EditableTextWithCursor> {
         int translation = newCursorPosition;
 
         while (newIndex < widget.config.length && translation > 0) {
-          final itemLength = (widget.config[newIndex].value ?? widget.config[newIndex].operation)!.length;
+          final int itemLength = (widget.config[newIndex].value ?? widget.config[newIndex].operation)!.length;
           translation -= itemLength;
-          if (translation > 0) {
+          // print("index: $newIndex  translation: $translation itemLength $itemLength $translation ${translation > -1}");
+          if (translation >= -1) {
             newIndex++;
           }
         }
@@ -126,9 +127,10 @@ class _EditableTextWithCursorState extends State<EditableTextWithCursor> {
         int translation = newCursorPosition;
 
         while (newIndex < widget.config.length && translation > 0) {
-          final itemLength = (widget.config[newIndex].value ?? widget.config[newIndex].operation)!.length;
+          final int itemLength = (widget.config[newIndex].value ?? widget.config[newIndex].operation)!.length;
           translation -= itemLength;
-          if (translation > -5) {
+          // print("index: $newIndex  translation: $translation itemLength $itemLength $translation ${translation > -1}");
+          if (translation >= -1) {
             newIndex++;
           }
         }

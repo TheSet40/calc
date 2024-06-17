@@ -20,24 +20,20 @@ class ZoomableLineChart extends StatefulWidget {
 }
 
 class _ZoomableLineChartState extends State<ZoomableLineChart> {
-  double minX = -10;
-  double maxX = 10;
+  double minX = -10.0;
+  double maxX = 10.0;
 
-  double minY = -10;
-  double maxY = 10;
+  double minY = -10.0;
+  double maxY = 10.0;
 
-  double intervall = 2;
+  double intervall = 2.0;
   double previousScaleFactor = 1.0;
 
   Offset previousOffset = Offset.zero;
 
-
-  List<List<FlSpot>> generateDataPoints() {
+  List<List<FlSpot>> generateDataPoints(double accuracy) {
     List<List<FlSpot>> points = [[]];
-
     List<List<Model>> configs = [[]];
-
-    final double accuracy = (maxX - minX) / 400; // number of points
 
     int grapfIndex = 0;
 
@@ -50,8 +46,6 @@ class _ZoomableLineChartState extends State<ZoomableLineChart> {
         configs[grapfIndex].add(widget.config[i]);
       }
     }
-
-    //print("config1: ${configs[0].map((item) => "\"${item.value ?? item.operation}\"")} config2: ${configs[1].map((item) => "\"${item.value ?? item.operation}\"")}");
 
     try {
       for (int i = 0; i < configs.length; i ++) {
@@ -84,14 +78,73 @@ class _ZoomableLineChartState extends State<ZoomableLineChart> {
     return HSLColor.fromAHSL(1.0, hue, saturation, lightness).toColor();
   }
 
+  List<FlSpot> findIntersections(List<List<FlSpot>> datapoints) {
+    if (datapoints.length < 2 || datapoints[0].isEmpty || datapoints[1].isEmpty) return [];
+
+    List<FlSpot> intersections = [];
+    // final DateTime start = DateTime.now();
+
+    for (int i = 0; i < datapoints.length; i++) {
+      for (int j = i + 1; j < datapoints.length; j++) {
+        List<FlSpot> line1 = datapoints[i];
+        List<FlSpot> line2 = datapoints[j];
+        for (int k = 0; k < line1.length - 1; k++) {
+          for (int l = 0; l < line2.length - 1; l++) {
+            FlSpot? intersection = getIntersection(line1[k], line1[k + 1], line2[l], line2[l + 1]);
+            if (intersection != null) {
+              intersections.add(intersection);
+            }
+          }
+        }
+      }
+    }
+
+    // print("intersection time = ${DateTime.now().difference(start).inMilliseconds} ms");
+
+    return intersections;
+  }
+
+  FlSpot? getIntersection(FlSpot p1, FlSpot p2, FlSpot q1, FlSpot q2) {
+    double a1 = p2.y - p1.y;
+    double b1 = p1.x - p2.x;
+    double c1 = a1 * p1.x + b1 * p1.y;
+
+    double a2 = q2.y - q1.y;
+    double b2 = q1.x - q2.x;
+    double c2 = a2 * q1.x + b2 * q1.y;
+
+    double determinant = a1 * b2 - a2 * b1;
+
+    if (determinant == 0) {
+      return null;
+    } else {
+      double x = (b2 * c1 - b1 * c2) / determinant;
+      double y = (a1 * c2 - a2 * c1) / determinant;
+
+      if (isBetween(p1, p2, x, y) && isBetween(q1, q2, x, y)) {
+        return FlSpot(x, y);
+      } else {
+        return null;
+      }
+    }
+  }
+
+  bool isBetween(FlSpot p1, FlSpot p2, double x, double y) {
+    return (x >= min(p1.x, p2.x) && x <= max(p1.x, p2.x) && y >= min(p1.y, p2.y) && y <= max(p1.y, p2.y));
+  }
+
   @override
   Widget build(BuildContext context) {
 
-    final List<List<FlSpot>> datapoints = generateDataPoints();
+    final double accuracy = (maxX - minX) / 400;
+    final double intersectaccuracy = accuracy / 2;
 
-    intervall = clampDouble((maxX - minX) / 8, 2, 1E300);
+    final List<List<FlSpot>> datapoints = generateDataPoints(accuracy);
+    final List<FlSpot> intersections = findIntersections(datapoints);
 
-    // print("${pow(10, 1 * 5.823 + 1).toInt()}");
+    intervall = clampDouble((maxX - minX) / 8, 0.005, 1E300);
+
+    // print("accuracy = $accuracy");
 
     return GestureDetector(
       onScaleStart: (ScaleStartDetails details) {
@@ -107,7 +160,7 @@ class _ZoomableLineChartState extends State<ZoomableLineChart> {
           double newMinY = (minY + maxY) / 2 - (maxY - minY) / 2 / scaleChange;
           double newMaxY = (minY + maxY) / 2 + (maxY - minY) / 2 / scaleChange;
 
-          if (newMaxX - newMinX > 0.5 && newMaxY - newMinY > 0.5) {
+          if (newMaxX - newMinX > 0.01 && newMaxY - newMinY > 0.01) {
             minX = newMinX;
             maxX = newMaxX;
             minY = newMinY;
@@ -116,7 +169,7 @@ class _ZoomableLineChartState extends State<ZoomableLineChart> {
 
           previousScaleFactor = details.scale;
 
-          // paning
+          // Panning
           double dx = (details.focalPoint.dx - previousOffset.dx) / context.size!.width * (maxX - minX);
           double dy = (previousOffset.dy - details.focalPoint.dy) / context.size!.height * (maxY - minY);
 
@@ -143,7 +196,7 @@ class _ZoomableLineChartState extends State<ZoomableLineChart> {
                 interval: intervall,
                 getTitlesWidget: (value, meta) {
                   return Text(
-                    value.toStringAsFixed(0),
+                    value.toStringAsFixed(accuracy > 0.025 ? 0: accuracy > 0.0025 ? 1: 2),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       color: Colors.white,
@@ -175,7 +228,7 @@ class _ZoomableLineChartState extends State<ZoomableLineChart> {
                 interval: intervall,
                 getTitlesWidget: (value, meta) {
                   return Text(
-                    value.toStringAsFixed(0),
+                    value.toStringAsFixed(accuracy > 0.025 ? 0: accuracy < 0.0025 ? 2: 1),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 12,
@@ -199,7 +252,7 @@ class _ZoomableLineChartState extends State<ZoomableLineChart> {
               color: colorFromNumber(pow(6.823 + index, index * 2).toDouble()),
               barWidth: 2,
               isStrokeCapRound: true,
-              dotData: const FlDotData(show: false),
+              dotData: FlDotData(show: true, checkToShowDot: (spot, _) => intersections.any((intersection) => (intersection.x - spot.x).abs() <= intersectaccuracy && (intersection.y - spot.y).abs() <= intersectaccuracy)),
               belowBarData: BarAreaData(show: false),
             ),
           ),

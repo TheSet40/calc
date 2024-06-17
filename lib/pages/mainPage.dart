@@ -112,8 +112,11 @@ class _MyHomePageState extends State<MainPage> {
           }
           break;
         case ".":
-          if (cursorIndex <= config.length) {
+          if (cursorIndex <= config.length  && config[cursorIndex -1].operation == null) {
             config[cursorIndex -1] = Model(value: "${config[cursorIndex -1].value}.", isDecimal: true);
+          } else {
+            print("Error left side of comma is not a number");
+            return;
           }
           break;
         case "=":
@@ -160,7 +163,6 @@ class _MyHomePageState extends State<MainPage> {
 
   @override
   Widget build(BuildContext context) {
-
     print("selector index $cursorIndex config ${config.length} items: ${config.map((e) => displayString(e)).join()}");
     final bool includesX = config.any((element) => element.operation == "X");
 

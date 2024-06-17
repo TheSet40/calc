@@ -27,13 +27,13 @@ class HistoryCache {
 
   static Future<List<HistoryItem>> loadHistory() async {
     try {
-      final path = (await getApplicationDocumentsDirectory()).path;
-      final file = File("$path/History.txt");
-      final cache = await file.readAsLines();
+      final String path = (await getApplicationDocumentsDirectory()).path;
+      final File file = File("$path/History.txt");
+      final List<String> cache = await file.readAsLines();
 
       List<HistoryItem> history = [];
 
-      for (var jsonItem in cache) {
+      for (String jsonItem in cache) {
         final Map<String, dynamic> itemMap = jsonDecode(jsonItem);
 
         history.add(HistoryItem.fromJson(itemMap));

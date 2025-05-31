@@ -115,7 +115,7 @@ class _MyHomePageState extends State<MainPage> {
           if (cursorIndex <= config.length  && config[cursorIndex -1].operation == null) {
             config[cursorIndex -1] = Model(value: "${config[cursorIndex -1].value}.", isDecimal: true);
           } else {
-            print("Error left side of comma is not a number");
+            debugPrint("Error left side of comma is not a number");
             return;
           }
           break;
@@ -163,7 +163,7 @@ class _MyHomePageState extends State<MainPage> {
 
   @override
   Widget build(BuildContext context) {
-    print("selector index $cursorIndex config ${config.length} items: ${config.map((e) => displayString(e)).join()}");
+    debugPrint("selector index $cursorIndex config ${config.length} items: ${config.map((e) => displayString(e)).join()}");
     final bool includesX = config.any((element) => element.operation == "X");
 
     return Scaffold(
@@ -181,107 +181,105 @@ class _MyHomePageState extends State<MainPage> {
               ]
             )
           ),
-          child: Stack(
+          child: Column(
             children: [
-              Positioned(
-                top: 10,
-                left: 8,
-                child: GestureDetector(
-                  onTap: () {
-                    _scaffoldKey.currentState?.openDrawer();
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF5a6372),
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(25),
-                        topRight: Radius.circular(25),
-                        bottomRight: Radius.circular(25)
-                      )
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        _scaffoldKey.currentState?.openDrawer();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF5a6372),
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(25),
+                            topRight: Radius.circular(25),
+                            bottomRight: Radius.circular(25)
+                          )
+                        ),
+                        child: Icon(
+                          Icons.history,
+                          color: Colors.white.withOpacity(0.85),
+                        ),
+                      ),
                     ),
-                    child: Icon(
-                      Icons.history,
-                      color: Colors.white.withOpacity(0.85),
-                    ),
-                  ),
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          vibrate = !vibrate;
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF5a6372),
+                          borderRadius: BorderRadius.all(Radius.circular(25))
+                        ),
+                        child: Icon(Icons.vibration,
+                          color: vibrate ? const Color.fromARGB(255, 48, 167, 52).withOpacity(0.95): const Color.fromARGB(255, 236, 36, 22).withOpacity(0.95),
+                        ),
+                      ),
+                    )
+                  ],
                 ),
               ),
-              Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 10.0, right: 10.0),
-                      child: includesX ? ZoomableLineChart(config: config, degrees: isDegrees): const SizedBox(),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    alignment: Alignment.bottomLeft,
-                    child: EditableTextWithCursor(config: config, onUpdateCursorPosition: updateCursorPosition),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.fromLTRB(12, 2, 12, 8),
-                    alignment: Alignment.bottomLeft,
-                    child: !includesX ? Text((previewResult ?? errorMessage).toString().replaceAll(RegExp(r"(\.0*|(?<=\.\d*)0+)$"), ""), style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.8))): const SizedBox(),
-                  ),
-                  extraButtonsStrip(),
-                  Container(
-                    height: 286,
-                    padding: const EdgeInsets.only(left: 8, right: 8, top: 3),
-                    alignment: Alignment.bottomCenter,
-                    child: GridView.count(
-                      childAspectRatio: 1.55,
-                      crossAxisCount: 4,
-                      children: [
-                        normalButton("E", operator: true, color: leftOperand),
-                        normalButton("%", operator: true, color: leftOperand),
-                        normalButton("DEL", overload: "C", operator: true, color: leftOperand),
-                        normalButton("÷", operator: true, color: rightOperand),
-                        normalButton("7"),
-                        normalButton("8"),
-                        normalButton("9"),
-                        normalButton("×", operator: true, color: rightOperand),
-                        normalButton("4"),
-                        normalButton("5"),
-                        normalButton("6"),
-                        normalButton("-", operator: true, color: rightOperand),
-                        normalButton("1"),
-                        normalButton("2"),
-                        normalButton("3"),
-                        normalButton("+", operator: true, color: rightOperand),
-                        normalButton(".", overload: ",", operator: true, color: leftOperand),
-                        normalButton("0"),
-                        normalButton("X", operator: true, color: leftOperand),
-                        normalButton("=", operator: true, color: rightOperand),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              Positioned(
-                top: 10,
-                right: 8,
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      vibrate = !vibrate;
-                    });
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF5a6372),
-                      borderRadius: BorderRadius.all(Radius.circular(25))
-                    ),
-                    child: Icon(Icons.vibration,
-                      color: vibrate ? const Color.fromARGB(255, 48, 167, 52).withOpacity(0.95): const Color.fromARGB(255, 236, 36, 22).withOpacity(0.95),
-                    ),
-                  ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 8, right: 8),
+                  child: includesX ? ZoomableLineChart(config: config, degrees: isDegrees): const SizedBox(),
                 ),
               ),
-            ]
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                alignment: Alignment.bottomLeft,
+                child: EditableTextWithCursor(
+                  config: config, 
+                  onUpdateCursorPosition: updateCursorPosition
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.fromLTRB(12, 2, 12, 7),
+                alignment: Alignment.bottomLeft,
+                child: !includesX ? Text((previewResult ?? errorMessage).toString().replaceAll(RegExp(r"(\.0*|(?<=\.\d*)0+)$"), ""), maxLines: 1, overflow: TextOverflow.visible, style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.8))): const SizedBox(),
+              ),
+              extraButtonsStrip(),
+              Container(
+                height: 285,
+                padding: const EdgeInsets.only(left: 6, right: 6, top: 3),
+                alignment: Alignment.bottomCenter,
+                child: GridView.count(
+                  childAspectRatio: 1.55,
+                  crossAxisCount: 4,
+                  children: [
+                    normalButton("E", operator: true, color: leftOperand),
+                    normalButton("%", operator: true, color: leftOperand),
+                    normalButton("DEL", overload: "C", operator: true, color: leftOperand),
+                    normalButton("÷", operator: true, color: rightOperand),
+                    normalButton("7"),
+                    normalButton("8"),
+                    normalButton("9"),
+                    normalButton("×", operator: true, color: rightOperand),
+                    normalButton("4"),
+                    normalButton("5"),
+                    normalButton("6"),
+                    normalButton("-", operator: true, color: rightOperand),
+                    normalButton("1"),
+                    normalButton("2"),
+                    normalButton("3"),
+                    normalButton("+", operator: true, color: rightOperand),
+                    normalButton(".", overload: ",", operator: true, color: leftOperand),
+                    normalButton("0"),
+                    normalButton("X", operator: true, color: leftOperand),
+                    normalButton("=", operator: true, color: rightOperand),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -403,18 +401,21 @@ class _MyHomePageState extends State<MainPage> {
 
     return SafeArea(
       child: Container(
-        width: MediaQuery.sizeOf(context).width * 0.55,
+        width: MediaQuery.sizeOf(context).width * 0.5,
         alignment: Alignment.centerLeft,
         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 15),
         decoration: const BoxDecoration(
-          color: Color(0xff151515),
-          borderRadius: BorderRadius.only(topRight: Radius.circular(28), bottomRight: Radius.circular(28))
+          color: Color(0xff131313),
+          borderRadius: BorderRadius.only(
+            topRight: Radius.circular(18), 
+            bottomRight: Radius.circular(18)
+          )
         ),
         child: ListView.builder(
           shrinkWrap: true,
           itemCount: history.length,
           itemBuilder: (BuildContext context, int index) { 
-            return drawerCard(history[index]);
+            return drawerCard(history[history.length - index - 1]);
           },
         )
       ),

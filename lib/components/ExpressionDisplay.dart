@@ -38,7 +38,7 @@ class _EditableTextWithCursorState extends State<EditableTextWithCursor> {
       textAlign: TextAlign.left,
     );
 
-    _timer = Timer.periodic(const Duration(milliseconds: 1000), (timer) {
+    _timer = Timer.periodic(const Duration(milliseconds: 750), (Timer timer) {
       setState(() {
         _transparent = !_transparent;
       });
@@ -147,7 +147,7 @@ class _EditableTextWithCursorState extends State<EditableTextWithCursor> {
         }
       },
       child: CustomPaint(
-        size: const Size(double.infinity, 40),
+        size: const Size(double.infinity, 33),
         painter: _TextPainter(
           config: widget.config,
           cursorIndex: _cursorIndex,
@@ -177,7 +177,7 @@ class _TextPainter extends CustomPainter {
     textPainter.text = TextSpan(
       text: config.map((e) => displayString(e)).join(),
       style: TextStyle(
-        fontSize: 30,
+        fontSize: 28,
         fontWeight: FontWeight.bold,
         color: Colors.white.withOpacity(0.8),
       ),

@@ -137,7 +137,7 @@ class _ZoomableLineChartState extends State<ZoomableLineChart> {
   Widget build(BuildContext context) {
 
     final double accuracy = (maxX - minX) / 400;
-    final double intersectaccuracy = accuracy / 2;
+    final double intersectaccuracy = accuracy / 1.5;
 
     final List<List<FlSpot>> datapoints = generateDataPoints(accuracy);
     final List<FlSpot> intersections = findIntersections(datapoints);
